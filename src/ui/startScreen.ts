@@ -31,6 +31,15 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
       <p><strong>Players</strong> includes you and up to three computer explorers.</p>
       <p>Move with <strong>WASD / arrow keys</strong>. Nearby supplies collect automatically. Return to your base to unload.</p>
       <p><strong>C</strong> changes the camera. <strong>P</strong> changes power priority. <strong>Space</strong> calls Earth for a supply drop.</p>
+      <fieldset class="audio-settings">
+        <legend>Sound</legend>
+        <label class="audio-mute"><input type="checkbox" class="settings-mute"> Mute all sound</label>
+        <label class="audio-slider" for="settings-music"><span>Music</span><output for="settings-music" class="music-volume-value"></output></label>
+        <input id="settings-music" class="settings-volume" type="range" min="0" max="100" step="1" aria-label="Music volume">
+        <label class="audio-slider" for="settings-effects"><span>Sound effects</span><output for="settings-effects" class="effects-volume-value"></output></label>
+        <input id="settings-effects" class="settings-volume" type="range" min="0" max="100" step="1" aria-label="Sound effects volume">
+        <p class="audio-settings-note">Changes save automatically. Set a slider to 0 to turn it off.</p>
+      </fieldset>
       <label><input type="checkbox" class="start-shadows" checked> Soft shadows</label>
       <button class="settings-done">Ready!</button>
     </dialog>`;
@@ -41,7 +50,28 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
   click('.players-selector .previous', () => { players = players === 1 ? 4 : players - 1; playersOutput.value = String(players); });
   click('.players-selector .next', () => { players = players === 4 ? 1 : players + 1; playersOutput.value = String(players); });
   const dialog = screen.querySelector<HTMLDialogElement>('dialog')!;
-  click('.start-settings', () => dialog.showModal());
+  const musicSlider = screen.querySelector<HTMLInputElement>('#settings-music')!;
+  const effectsSlider = screen.querySelector<HTMLInputElement>('#settings-effects')!;
+  const mute = screen.querySelector<HTMLInputElement>('.settings-mute')!;
+  function syncAudio() {
+    const settings = audio.getSettings();
+    mute.checked = settings.muted;
+    for (const [slider, value, selector] of [
+      [musicSlider, settings.musicVolume, '.music-volume-value'],
+      [effectsSlider, settings.effectsVolume, '.effects-volume-value'],
+    ] as const) {
+      slider.value = String(Math.round(value * 100));
+      screen.querySelector<HTMLOutputElement>(selector)!.value = `${slider.value}%`;
+      slider.setAttribute('aria-valuetext', `${slider.value}%${settings.muted ? ' (muted)' : ''}`);
+    }
+  }
+  const unsubscribeAudio = audio.onSettingsChange(syncAudio);
+  syncAudio();
+  musicSlider.oninput = () => audio.setVolume('music', Number(musicSlider.value) / 100);
+  effectsSlider.oninput = () => audio.setVolume('effects', Number(effectsSlider.value) / 100);
+  effectsSlider.onchange = () => audio.click();
+  mute.onchange = () => audio.setMuted(mute.checked);
+  click('.start-settings', () => { syncAudio(); dialog.showModal(); });
   click('.settings-close', () => dialog.close());
   click('.settings-done', () => dialog.close());
   const launch = screen.querySelector<HTMLButtonElement>('.start-launch')!;
@@ -63,6 +93,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
       window.clearTimeout(fallback);
       audio.enterGame();
       onStart({ players });
+      unsubscribeAudio();
       screen.remove();
     };
     launch.addEventListener('animationend', event => {
