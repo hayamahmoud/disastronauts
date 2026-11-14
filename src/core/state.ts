@@ -4,7 +4,7 @@
 // Coordinates: gameplay works on the ground plane {x, z}. Height (y) comes
 // from the terrain grid. 1 unit = 1 Roblox stud. Y is up.
 
-import type { BuildingKind, PickupKind, PowerPriority, ResourceKind } from '../config/balance';
+import type { BuildingKind, DisasterKind, FlareClass, PickupKind, PowerPriority, ResourceKind } from '../config/balance';
 import type { RngState } from './rng';
 
 export interface Vec2 {
@@ -34,6 +34,8 @@ export interface PlayerInput {
   forward?: number;
   // Optional one-off command: change which building gets Power first.
   powerPriority?: PowerPriority;
+  // Optional one-off command: ask Earth for a supply drop.
+  callSupplyDrop?: boolean;
 }
 
 export type Cargo = Record<PickupKind, number>;
@@ -50,6 +52,23 @@ export interface PlayerState {
   heading: number;
   cargo: Cargo;
   cargoCount: number;
+  mission: MissionState | null; // the one goal shown on the mission card
+  missionTimer: number; // seconds until the next mission appears
+  stars: number; // stars earned from missions so far
+  missionsDone: number;
+  supplyCooldown: number; // seconds until another supply drop can be called
+}
+
+// Missions: "bring N of something home" or "fill your battery to N".
+export type MissionKind = 'bringRegolith' | 'bringIce' | 'bringSolar' | 'bringCrates' | 'storePower';
+
+export interface MissionState {
+  kind: MissionKind;
+  target: number;
+  progress: number;
+  duration: number; // seconds you had in total
+  timeLeft: number;
+  disaster: DisasterKind | null; // the disaster this mission prepares for (if any)
 }
 
 export interface BuildingState {
@@ -63,6 +82,10 @@ export interface BaseState {
   id: string;
   ownerId: string;
   pos: Vec2;
+  // 'wrecked' = all crew were lost. A new lander arrives after relaunchTimer.
+  status: 'active' | 'wrecked';
+  relaunchTimer: number;
+  launches: number; // counts landings, so visuals know to rebuild the base
   crew: number;
   sick: number; // how many of `crew` are sick (they don't work)
   health: number; // crew health, 0–100, shared by the whole crew
@@ -84,6 +107,47 @@ export interface PickupState {
   active: boolean; // false while waiting to respawn
   respawnTimer: number;
   pulledBy: string | null; // player id whose magnet is pulling it
+  // Temporary pickups (salvage, supply drops) never respawn: they vanish when
+  // collected or when timeLeft runs out.
+  temporary: boolean;
+  timeLeft: number;
+}
+
+// A disaster that is happening right now.
+export interface ActiveDisaster {
+  kind: DisasterKind;
+  flareClass: FlareClass | null; // only for solar flares
+  strength: number; // 1 = normal
+  startedAt: number;
+  endsAt: number;
+}
+
+// The next disaster, already decided so we can warn players and plan missions.
+export interface PlannedDisaster {
+  kind: DisasterKind;
+  flareClass: FlareClass | null;
+  strength: number;
+  startsAt: number;
+  warned: boolean;
+}
+
+// What's left of a base that lost all its crew. Bigger bases can absorb it.
+export interface WreckState {
+  id: number;
+  pos: Vec2;
+  ownerId: string;
+  colorIndex: number;
+  buildingCount: number; // how big the base was
+  timeLeft: number; // seconds before it crumbles away
+}
+
+// A supply drop on its way from Earth.
+export interface SupplyDropState {
+  id: number;
+  playerId: string;
+  pos: Vec2; // where it will land
+  calledAt: number;
+  landsAt: number;
 }
 
 export interface GameState {
@@ -96,6 +160,13 @@ export interface GameState {
   players: PlayerState[];
   bases: BaseState[];
   pickups: PickupState[];
+  disastersEnabled: boolean;
+  disaster: ActiveDisaster | null;
+  nextDisaster: PlannedDisaster | null;
+  wrecks: WreckState[];
+  supplyDrops: SupplyDropState[];
+  // How long a radio signal takes between Earth and Mars this game, in minutes.
+  lightMinutes: number;
 }
 
 export function emptyCargo(): Cargo {

@@ -153,6 +153,96 @@ export const BALANCE = {
     healthAfterLoss: 50, // when health hits 0, one crew member is lost and health resets to this
   },
 
+  // Disasters hit every base at the same time, after a short warning.
+  // All numbers here are GAME-BALANCE numbers (not NASA measurements).
+  disasters: {
+    warningSeconds: 5, // the warning banner shows this long before a disaster hits
+    firstDelay: 45, // calm seconds at the start of a game before the first disaster
+    // Calm seconds between one disaster ending and the next one starting.
+    minGap: 30,
+    maxGap: 45,
+    // How often each kind is picked (higher = more often).
+    weights: { dustStorm: 1, solarFlare: 1, coldNight: 1 },
+    dustStorm: {
+      duration: 20,
+      solarFactor: 0.2, // solar panels make only 20% of their normal Power in the dust
+    },
+    solarFlare: {
+      duration: 10,
+      // Health lost per sol by crew NOT covered by shielding, at strength 1.
+      // Fully shielded bases take none; half-shielded bases take half.
+      damagePerSol: 240,
+      // Extra health lost per sol while your astronaut is outside the base.
+      outsideDamagePerSol: 120,
+      // Flare classes (C < M < X) and how strong each one hits.
+      // TODO-REAL-DATA: M5 replays real DONKI flares; the class will come from that data.
+      classes: {
+        C: { weight: 5, strength: 0.6 },
+        M: { weight: 3, strength: 1 },
+        X: { weight: 1, strength: 1.6 },
+      },
+    },
+    coldNight: {
+      // Lasts from sunset to sunrise. Each shelter (lander or habitat) needs this
+      // much EXTRA Power per sol for heaters, so bigger bases pay more.
+      heatPerShelterPerSol: 30,
+    },
+  },
+
+  // A base that loses all its crew becomes a wreck.
+  wrecks: {
+    relaunchDelay: 8, // seconds until your new lander touches down somewhere else
+    salvageBase: 4, // salvage crates that burst out of every wreck...
+    salvagePerBuilding: 2, // ...plus this many per building it had
+    maxSalvage: 16,
+    scatterMin: 6, // crates land this far (studs) from the wreck
+    scatterMax: 16,
+    salvageLifetime: 90, // seconds before uncollected salvage crumbles away
+    lifetime: 120, // seconds before the wreck itself crumbles away
+    absorbRadius: 9, // walk this close to a wreck to absorb it
+    // Absorbing gives your base build points (only if your base is at least as big as the wreck was).
+    absorbBuildPointsBase: 6,
+    absorbBuildPointsPerBuilding: 4,
+  },
+
+  // Supply drops from Earth: they arrive late because radio signals take time
+  // to cross space (communication delay).
+  supplyDrop: {
+    // SOURCE: NASA NSSDCA Mars Fact Sheet, "Distance from Earth":
+    // minimum 54.6 million km, maximum 401.4 million km.
+    // https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html
+    earthDistanceMinKm: 54.6e6,
+    earthDistanceMaxKm: 401.4e6,
+    // Speed of light (exact, by definition of the meter).
+    speedOfLightKmPerS: 299792.458,
+    // Signal time (light-minutes) → game seconds. 1 = one real minute becomes one game second.
+    secondsPerLightMinute: 1,
+    powerCost: 20, // calling Earth uses the big radio: costs Power
+    cooldown: 40, // seconds before you can call another drop
+    landingOffset: 6, // lands this far outside your base's unload circle
+    scatter: 4, // the crate bursts into pickups within this many studs
+    items: ['ice', 'ice', 'regolith', 'regolith', 'solar', 'solar', 'crate'],
+    itemLifetime: 90, // seconds before uncollected supplies blow away
+  },
+
+  // Missions: one clear goal at a time. Most are tied to the next disaster.
+  missions: {
+    firstDelay: 3, // seconds before the very first mission appears
+    gap: 3, // seconds between one mission ending and the next
+    genericDuration: 40, // time limit for missions not tied to a disaster
+    // A mission is tied to the next disaster if it hits between these many seconds from now.
+    minDisasterLead: 12,
+    maxDisasterLead: 50,
+    fastFraction: 0.5, // finish within the first half of the time = 3 stars (else 2)
+    partialFraction: 0.5, // time ran out but at least half done = 1 star
+    minItems: 3, // "bring N things home" asks for at least...
+    maxItems: 8, // ...and at most this many
+    secondsPerItem: 5, // ...and never more than one item per this many seconds of time limit
+    powerTargetBoost: 20, // "store Power" asks for this much more than you have now
+    powerTargetMaxFraction: 0.9, // ...but never more than 90% of the battery
+    lowFraction: 0.4, // a bar under 40% counts as "running low" when picking a mission
+  },
+
   // Camera is visual only, but it's a tunable number so it lives here too.
   camera: {
     // Low camera aimed above the player, so sky and far hills are on screen.
@@ -177,3 +267,5 @@ export type BuildingKind = (typeof BALANCE.growth.buildOrder)[number];
 export type ResourceKind = 'power' | 'lifeSupport' | 'shielding';
 // When there isn't enough Power for everything, which building gets it first.
 export type PowerPriority = 'greenhouse' | 'shield_generator';
+export type DisasterKind = keyof typeof BALANCE.disasters.weights;
+export type FlareClass = keyof typeof BALANCE.disasters.solarFlare.classes;

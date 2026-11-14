@@ -20,6 +20,13 @@
   --color-day: #ffb36a; /* Sol track */
   --color-night: #4a3a6a;
 
+  /* Disasters (same colors as THEME.dustHaze / flareGlow / frostHaze in theme.ts). */
+  --color-dust: rgba(201, 138, 90, 0.45);
+  --color-flare: rgba(255, 240, 184, 0.4);
+  --color-frost: rgba(138, 156, 200, 0.4);
+  --color-alert: #7a2433; /* the banner while a disaster is happening */
+  --color-star: #ffd34a;
+
   /* One color per chip. Same colors as the badges over pickups (theme.ts badge*). */
   --c-power: #ffc54a;
   --c-life: #6fc8f2;
@@ -102,7 +109,7 @@ body {
 .message {
   position: absolute;
   left: 50%;
-  top: 146px;
+  top: 214px; /* under the disaster banner */
   transform: translateX(-50%);
   padding: var(--space-s) 22px;
   border: 3px solid var(--color-orange);
@@ -358,6 +365,115 @@ body {
   bottom: 14px;
 }
 
+/* Call Earth button, above the Power-first button. */
+.hud-call {
+  right: 14px;
+  bottom: 72px;
+}
+.hud-call.is-waiting {
+  opacity: 0.75;
+}
+
+/* Mission card, left under the logo. */
+.hud-mission {
+  position: absolute;
+  left: 14px;
+  top: 62px;
+  width: 240px;
+  padding: 10px 14px 12px;
+  border-radius: var(--radius-m);
+  background: var(--color-plum);
+  box-shadow: 0 4px 0 var(--color-shadow);
+  font-size: var(--font-size-s);
+}
+.hud-mission-head {
+  color: var(--color-orange);
+  font-size: var(--font-size-m);
+}
+.hud-mission-text {
+  margin: 4px 0 6px;
+  font-size: 16px;
+  line-height: 1.25;
+}
+.hud-mission-progress {
+  font-size: var(--font-size-m);
+}
+.hud-mission-time {
+  height: 5px;
+  margin: 6px 0;
+  border-radius: 5px;
+  background: var(--color-track);
+}
+.hud-mission-time span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--color-orange);
+}
+.hud-mission-stars {
+  color: var(--color-star);
+}
+.hud-mission.is-empty .hud-mission-text {
+  opacity: 0.7;
+}
+.hud-mission.is-empty .hud-mission-progress,
+.hud-mission.is-empty .hud-mission-time {
+  display: none;
+}
+
+/* Disaster banner: a warning countdown, then what's happening right now. */
+.hud-alert {
+  position: absolute;
+  left: 50%;
+  top: 140px;
+  transform: translateX(-50%);
+  padding: 6px 20px 8px;
+  border: 3px solid var(--color-warn);
+  border-radius: var(--radius-m);
+  background: var(--color-plum);
+  box-shadow: 0 4px 0 var(--color-shadow);
+  text-align: center;
+  white-space: nowrap;
+  transition: opacity 0.4s;
+  animation: pulse 1s ease-in-out infinite;
+}
+.hud-alert.is-active {
+  border-color: var(--color-bad);
+  background: var(--color-alert);
+  animation: none;
+}
+.hud-alert.is-hidden {
+  opacity: 0;
+  animation: none;
+}
+.hud-alert-title {
+  font-size: var(--font-size-l);
+}
+.hud-alert-text {
+  font-size: var(--font-size-s);
+}
+
+/* Screen tint around the edges during a disaster. */
+.hud-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.2s;
+}
+.hud-overlay[data-kind='dustStorm'] {
+  opacity: 1;
+  background: radial-gradient(ellipse at center, transparent 35%, var(--color-dust));
+}
+.hud-overlay[data-kind='solarFlare'] {
+  opacity: 1;
+  background: radial-gradient(ellipse at center, transparent 30%, var(--color-flare));
+  animation: flicker 0.5s ease-in-out infinite alternate;
+}
+.hud-overlay[data-kind='coldNight'] {
+  opacity: 1;
+  background: radial-gradient(ellipse at center, transparent 40%, var(--color-frost));
+}
+
 /* Mini-map: round, top-right, under the Sol pill. */
 .minimap {
   position: absolute;
@@ -392,8 +508,18 @@ body {
   .hud-keys {
     display: none;
   }
-  .message {
+  .hud-mission {
+    top: auto;
+    bottom: 150px;
+    width: 200px;
+  }
+  .hud-alert {
     top: 160px;
+    white-space: normal;
+    width: 90%;
+  }
+  .message {
+    top: 240px;
     font-size: var(--font-size-m);
     white-space: normal;
     width: 90%;
@@ -401,6 +527,19 @@ body {
 }
 
 /* ---------- Animations ---------- */
+@keyframes pulse {
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+@keyframes flicker {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 1;
+  }
+}
 @keyframes wobble {
   25% {
     transform: rotate(-10deg);

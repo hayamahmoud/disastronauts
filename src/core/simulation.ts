@@ -5,14 +5,18 @@
 import { BALANCE } from '../config/balance';
 import { updateCrew } from './crew';
 import { updateDayNight } from './dayNight';
+import { setupDisasters, updateDisasters } from './disasters';
 import type { GameEvent } from './events';
+import { updateMissions } from './missions';
 import { moveRover } from './movement';
-import { randomPointInPlayArea, spawnInitialPickups, updateDeposits, updatePickups } from './pickups';
+import { spawnInitialPickups, updateDeposits, updatePickups } from './pickups';
 import { updateResources } from './resources';
 import { createRng } from './rng';
-import type { BaseState, GameState, PlayerInput, PlayerState, TerrainGrid, Vec2 } from './state';
-import { distance, emptyCargo, findBase } from './state';
+import type { BaseState, GameState, PlayerInput, PlayerState, TerrainGrid } from './state';
+import { emptyCargo, findBase } from './state';
+import { requestSupplyDrop, rollLightMinutes, updateSupplyDrops } from './supplyDrop';
 import { generatePlaceholderTerrain } from './terrain';
+import { pickBaseSpawn, updateWrecks } from './wrecks';
 
 export interface PlayerSetup {
   id: string;
@@ -23,6 +27,7 @@ export interface GameSetup {
   seed: number;
   players: PlayerSetup[];
   terrain?: TerrainGrid; // defaults to the placeholder crater
+  disasters?: boolean; // defaults to true; tests can turn disasters off
 }
 
 export function createGame(setup: GameSetup): GameState {
@@ -36,6 +41,12 @@ export function createGame(setup: GameSetup): GameState {
     players: [],
     bases: [],
     pickups: [],
+    disastersEnabled: false,
+    disaster: null,
+    nextDisaster: null,
+    wrecks: [],
+    supplyDrops: [],
+    lightMinutes: 0,
   };
 
   setup.players.forEach((ps, index) => {
@@ -44,6 +55,9 @@ export function createGame(setup: GameSetup): GameState {
       id: 'base_' + ps.id,
       ownerId: ps.id,
       pos: basePos,
+      status: 'active',
+      relaunchTimer: 0,
+      launches: 1,
       crew: BALANCE.base.startCrew,
       sick: 0,
       health: BALANCE.crew.maxHealth,
@@ -65,12 +79,19 @@ export function createGame(setup: GameSetup): GameState {
       heading: 0,
       cargo: emptyCargo(),
       cargoCount: 0,
+      mission: null,
+      missionTimer: BALANCE.missions.firstDelay,
+      stars: 0,
+      missionsDone: 0,
+      supplyCooldown: 0,
     };
     state.bases.push(base);
     state.players.push(player);
   });
 
   spawnInitialPickups(state);
+  state.lightMinutes = rollLightMinutes(state);
+  setupDisasters(state, setup.disasters ?? true);
   return state;
 }
 
@@ -82,12 +103,16 @@ export function step(state: GameState, inputs: PlayerInput[], dt: number): GameE
   for (const player of state.players) {
     const input = findInput(inputs, player.id);
     moveRover(player, input, state.terrain, dt);
-    applyCommands(state, player, input);
+    applyCommands(state, player, input, events);
   }
+  updateDisasters(state, events);
   updatePickups(state, dt, events);
   updateDeposits(state, events);
+  updateSupplyDrops(state, dt, events);
   updateResources(state, dt, events);
   updateCrew(state, dt, events);
+  updateWrecks(state, dt, events);
+  updateMissions(state, dt, events);
   updateDayNight(state, dt, events);
 
   state.tick += 1;
@@ -96,27 +121,14 @@ export function step(state: GameState, inputs: PlayerInput[], dt: number): GameE
 }
 
 // One-off commands that come with the input (not movement).
-function applyCommands(state: GameState, player: PlayerState, input: PlayerInput | undefined): void {
-  if (!input || !input.powerPriority) return;
+function applyCommands(state: GameState, player: PlayerState, input: PlayerInput | undefined, events: GameEvent[]): void {
+  if (!input) return;
   const base = findBase(state, player.baseId);
-  if (base) base.powerPriority = input.powerPriority;
+  if (input.powerPriority && base) base.powerPriority = input.powerPriority;
+  if (input.callSupplyDrop) requestSupplyDrop(state, player, events);
 }
 
 function findInput(inputs: PlayerInput[], playerId: string): PlayerInput | undefined {
   for (const i of inputs) if (i.playerId === playerId) return i;
   return undefined;
-}
-
-// Random spot in the play area, kept apart from other bases when possible.
-function pickBaseSpawn(state: GameState): Vec2 {
-  let best = randomPointInPlayArea(state);
-  for (let tries = 0; tries < 30; tries++) {
-    let ok = true;
-    for (const b of state.bases) {
-      if (distance(best, b.pos) < BALANCE.base.minSpawnDistance) ok = false;
-    }
-    if (ok) return best;
-    best = randomPointInPlayArea(state);
-  }
-  return best;
 }

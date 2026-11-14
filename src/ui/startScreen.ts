@@ -30,7 +30,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
       <h2>Mission settings</h2>
       <p><strong>Players</strong> includes you and up to three computer explorers.</p>
       <p>Move with <strong>WASD / arrow keys</strong>. Nearby supplies collect automatically. Return to your base to unload.</p>
-      <p><strong>C</strong> changes the camera. <strong>P</strong> changes power priority.</p>
+      <p><strong>C</strong> changes the camera. <strong>P</strong> changes power priority. <strong>Space</strong> calls Earth for a supply drop.</p>
       <label><input type="checkbox" class="start-shadows" checked> Soft shadows</label>
       <button class="settings-done">Ready!</button>
     </dialog>`;
