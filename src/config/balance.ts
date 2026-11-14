@@ -25,6 +25,8 @@ export const BALANCE = {
   rover: {
     maxSpeed: 38, // studs per second on flat ground
     acceleration: 6, // how quickly it reaches top speed (higher = snappier)
+    turnSpeed: 3.2, // radians per second when turning with A/D in the behind view
+    backUpSpeedFactor: 0.45, // backing up (S in the behind view) is slower than walking forward
     maxClimbSlope: 0.55, // steeper than this = a wall the rover can't climb
     slopeSlowdown: 1.2, // uphill slope multiplies speed by (1 - slope * this)
     minSlopeSpeedFactor: 0.35, // never slower than 35% speed on a climbable hill
@@ -32,9 +34,10 @@ export const BALANCE = {
   },
 
   magnet: {
-    baseRadius: 12, // pickups closer than this get pulled in
-    radiusPerBuilding: 1.5, // the magnet grows as your base grows
-    maxRadius: 40,
+    // Game numbers, not NASA data: picked so you have to walk close to things.
+    baseRadius: 6, // pickups closer than this get pulled in
+    radiusPerBuilding: 0.75, // the magnet grows as your base grows
+    maxRadius: 20,
     pullSpeed: 70, // studs per second a pulled pickup flies toward you
     collectRadius: 3, // pickups this close are collected
   },
@@ -152,10 +155,20 @@ export const BALANCE = {
 
   // Camera is visual only, but it's a tunable number so it lives here too.
   camera: {
-    height: 55,
-    distance: 48, // how far behind (toward +z) the camera sits
+    // Low camera aimed above the player, so sky and far hills are on screen.
+    height: 12,
+    distance: 30, // how far behind (toward +z) the camera sits
     followSharpness: 6, // higher = camera catches up faster
+    lookHeight: 10, // the camera aims this far above the player (more = more sky on screen)
     topDownHeight: 110,
+    turnSharpness: 4, // how quickly the behind view swings round when you turn (higher = faster)
+    dragTurnSpeed: 0.006, // top view: radians the map turns per pixel of mouse drag
+  },
+
+  // The mini-map in the top-right corner (visual only).
+  minimap: {
+    sizePx: 150, // on-screen size in pixels
+    viewRadius: 160, // studs from the player to the map's edge
   },
 } as const;
 

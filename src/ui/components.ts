@@ -10,13 +10,6 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = ''
   return node;
 }
 
-// A rounded card that floats over the game.
-export function createPanel(parent: HTMLElement): HTMLDivElement {
-  const panel = el('div', 'panel');
-  parent.appendChild(panel);
-  return panel;
-}
-
 // An icon from the asset manifest: the designed image if there is one,
 // otherwise (or if it fails to load) the emoji.
 export function createIcon(id: UiIconId): HTMLSpanElement {
@@ -30,23 +23,6 @@ export function createIcon(id: UiIconId): HTMLSpanElement {
     // onerror: do nothing, the emoji stays.
   }
   return span;
-}
-
-// One "icon + value" line inside a panel. Returns a setter for the value.
-export function createStat(parent: HTMLElement, icon: UiIconId, label: string) {
-  const row = el('div', 'stat');
-  row.title = label;
-  const iconBox = el('span', 'stat-icon');
-  iconBox.appendChild(createIcon(icon));
-  row.append(iconBox, el('span', 'stat-value'));
-  parent.appendChild(row);
-  const value = row.querySelector('.stat-value') as HTMLSpanElement;
-  return {
-    set(text: string, isFull = false) {
-      if (value.textContent !== text) value.textContent = text;
-      row.classList.toggle('is-full', isFull);
-    },
-  };
 }
 
 // A small label pinned to a corner of the screen.
@@ -81,31 +57,32 @@ export function levelFor(fraction: number): Level {
   return 'bad';
 }
 
-// A resource bar: icon, a colored bar, and a short value + trend arrow.
-export function createBar(parent: HTMLElement, icon: UiIconId, label: string) {
-  const row = el('div', 'bar-row');
-  row.title = label;
-  const iconBox = el('span', 'bar-icon');
+// A chip: [colored icon circle] 45 ▲, with a thin fill line along the bottom.
+// `key` picks its color in theme.css; the level (good/warn/bad) turns it
+// yellow or red, and a red chip wiggles.
+export function createChip(parent: HTMLElement, key: string, icon: UiIconId, label: string) {
+  const chip = el('div', 'chip');
+  chip.dataset.key = key;
+  chip.title = label;
+  const iconBox = el('span', 'chip-icon');
   iconBox.appendChild(createIcon(icon));
-  const track = el('div', 'bar-track');
-  const fill = el('div', 'bar-fill');
-  track.appendChild(fill);
-  const value = el('span', 'bar-value');
-  const trend = el('span', 'bar-trend');
-  row.append(iconBox, track, value, trend);
-  parent.appendChild(row);
+  const value = el('span', 'chip-num');
+  const trend = el('span', 'chip-trend');
+  const bar = el('span', 'chip-bar');
+  bar.appendChild(el('span'));
+  chip.append(iconBox, value, trend, bar);
+  parent.appendChild(chip);
   return {
-    // fraction 0–1 sets the bar; trend > 0 shows ▲, < 0 shows ▼.
+    // fraction 0–1 fills the line; trend > 0 shows ▲, < 0 shows ▼.
     set(fraction: number, text: string, trendValue = 0, level: Level = levelFor(fraction)) {
-      fill.style.width = `${Math.round(Math.max(0, Math.min(1, fraction)) * 100)}%`;
-      row.dataset.level = level;
+      chip.style.setProperty('--v', Math.max(0, Math.min(1, fraction)).toFixed(3));
+      chip.dataset.level = level;
       if (value.textContent !== text) value.textContent = text;
       const arrow = trendValue > 0.5 ? '▲' : trendValue < -0.5 ? '▼' : '';
       if (trend.textContent !== arrow) trend.textContent = arrow;
-      trend.dataset.dir = trendValue > 0 ? 'up' : 'down';
     },
     setTitle(text: string) {
-      row.title = text;
+      chip.title = text;
     },
   };
 }
