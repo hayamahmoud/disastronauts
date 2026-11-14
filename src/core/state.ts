@@ -27,6 +27,11 @@ export interface PlayerInput {
   // moveZ = -1 means "away from the camera" (W / up arrow).
   moveX: number;
   moveZ: number;
+  // "Turn & walk" controls (used by the camera-behind view). When either is
+  // set, moveX/moveZ are ignored. turn: +1 = turn right, -1 = turn left.
+  // forward: +1 = walk forward, -1 = back up (without turning around).
+  turn?: number;
+  forward?: number;
   // Optional one-off command: change which building gets Power first.
   powerPriority?: PowerPriority;
 }

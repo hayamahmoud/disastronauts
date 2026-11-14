@@ -80,6 +80,40 @@ describe('step()', () => {
     expect(Math.hypot(p.vel.x, p.vel.z)).toBe(0);
   });
 
+  describe('turn & walk controls (behind view)', () => {
+    it('W walks the way you face (heading 0 = north, -Z)', () => {
+      const s = newGame();
+      const p = s.players[0];
+      p.heading = 0;
+      const start = { ...p.pos };
+      run(s, 1, { moveX: 0, moveZ: 0, forward: 1 });
+      expect(p.pos.z).toBeLessThan(start.z - 10);
+      expect(Math.abs(p.pos.x - start.x)).toBeLessThan(1);
+    });
+
+    it('D turns right (from north toward east) even when standing still', () => {
+      const s = newGame();
+      const p = s.players[0];
+      p.heading = 0;
+      run(s, 0.25, { moveX: 0, moveZ: 0, turn: 1 });
+      expect(p.heading).toBeLessThan(0); // right turn = heading goes negative (toward east)
+      const start = { ...p.pos };
+      run(s, 0.5, { moveX: 0, moveZ: 0, turn: 0, forward: 1 });
+      expect(p.pos.x).toBeGreaterThan(start.x); // now walking partly east
+    });
+
+    it('S backs up slowly without turning around', () => {
+      const s = newGame();
+      const p = s.players[0];
+      p.heading = 0;
+      const start = { ...p.pos };
+      run(s, 1, { moveX: 0, moveZ: 0, forward: -1 });
+      expect(p.heading).toBe(0);
+      expect(p.pos.z).toBeGreaterThan(start.z + 2); // moved backward (south)
+      expect(p.pos.z - start.z).toBeLessThan(BALANCE.rover.maxSpeed * BALANCE.rover.backUpSpeedFactor);
+    });
+  });
+
   it('cannot drive up the crater wall', () => {
     const s = newGame();
     const p = s.players[0];

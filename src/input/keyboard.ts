@@ -7,8 +7,15 @@ export interface MoveVector {
   z: number;
 }
 
+// "Turn & walk" keys for the camera-behind view: A/D turn, W/S walk.
+export interface TurnWalk {
+  turn: number; // +1 = right
+  forward: number; // +1 = forward, -1 = back up
+}
+
 export interface KeyboardInput {
   getMove(): MoveVector;
+  getTurnWalk(): TurnWalk;
   onKeyPress(code: string, handler: () => void): void;
 }
 
@@ -38,6 +45,11 @@ export function createKeyboardInput(target: Window = window): KeyboardInput {
       const x = (pressed('KeyD', 'ArrowRight') ? 1 : 0) - (pressed('KeyA', 'ArrowLeft') ? 1 : 0);
       const z = (pressed('KeyS', 'ArrowDown') ? 1 : 0) - (pressed('KeyW', 'ArrowUp') ? 1 : 0);
       return { x, z };
+    },
+    getTurnWalk() {
+      const turn = (pressed('KeyD', 'ArrowRight') ? 1 : 0) - (pressed('KeyA', 'ArrowLeft') ? 1 : 0);
+      const forward = (pressed('KeyW', 'ArrowUp') ? 1 : 0) - (pressed('KeyS', 'ArrowDown') ? 1 : 0);
+      return { turn, forward };
     },
     onKeyPress(code, handler) {
       handlers.set(code, handler);

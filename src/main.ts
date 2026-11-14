@@ -12,6 +12,7 @@ import { createStartScreen } from './ui/startScreen';
 import { explorerInput } from './core/explorerInput';
 import './ui/startScreen.css';
 import { createGameAudio } from './audio/gameAudio';
+import { createMinimap } from './ui/minimap';
 
 const LOCAL_PLAYER = 'p1';
 const audio = createGameAudio(LOCAL_PLAYER);
@@ -24,6 +25,7 @@ console.info(`Disastronauts seed: ${seed} (add ?seed=${seed} to the URL to repla
 let state: ReturnType<typeof createGame>;
 let view: ReturnType<typeof createGameView>;
 let hud: Hud;
+let minimap: ReturnType<typeof createMinimap>;
 let playing = false;
 const menu = createStartScreen(options => {
   state = createGame({
@@ -32,6 +34,7 @@ const menu = createStartScreen(options => {
   });
   view = createGameView(document.getElementById('game')!, state, LOCAL_PLAYER, menu.shadows());
   hud = createHud(document.getElementById('ui')!, LOCAL_PLAYER, state.terrain.isPlaceholder, togglePowerPriority);
+  minimap = createMinimap(document.getElementById('ui')!, LOCAL_PLAYER, () => view.getMapYaw());
   playing = true;
   if (import.meta.env.DEV) {
     (window as unknown as { __disastronauts: unknown }).__disastronauts = { state };
@@ -68,8 +71,14 @@ function frame(now: number) {
   const events: GameEvent[] = [];
   let steps = 0;
   while (accumulator >= BALANCE.sim.fixedDt && steps < BALANCE.sim.maxStepsPerFrame) {
+    // Behind view: A/D turn and W/S walk. Top view: W/A/S/D move up/left/down/right
+    // on the SCREEN, so we turn the keys by however far the map has been dragged.
     const move = keyboard.getMove();
-    const input = { playerId: LOCAL_PLAYER, moveX: move.x, moveZ: move.z, powerPriority: pendingPriority };
+    const steer = view.getCameraMode() === 'follow' ? keyboard.getTurnWalk() : {};
+    const yaw = view.getMapYaw();
+    const moveX = move.x * Math.cos(yaw) + move.z * Math.sin(yaw);
+    const moveZ = -move.x * Math.sin(yaw) + move.z * Math.cos(yaw);
+    const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, powerPriority: pendingPriority };
     pendingPriority = undefined; // a one-off command: send it once
     const inputs = [input, ...state.players.slice(1).map(player => explorerInput(state, player))];
     events.push(...step(state, inputs, BALANCE.sim.fixedDt));
@@ -81,6 +90,7 @@ function frame(now: number) {
   view.update(state, events, dt);
   hud.update(state, events);
   audio.update(events, state.players[0].baseId);
+  minimap.update(state);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
