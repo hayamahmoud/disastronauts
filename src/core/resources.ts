@@ -4,6 +4,7 @@
 
 import { BALANCE, type BuildingKind, type PowerPriority } from '../config/balance';
 import { sunlight } from './dayNight';
+import { heatPerShelterPerSol, solarFactor } from './disasters';
 import type { GameEvent } from './events';
 import type { BaseState, GameState } from './state';
 
@@ -43,17 +44,25 @@ export function healthyCrew(base: BaseState): number {
   return Math.max(0, base.crew - base.sick);
 }
 
-// Solar output per sol right now (changes with the time of day).
-export function solarPerSol(base: BaseState, time: number): number {
+// Solar output per sol right now (changes with the time of day, and dust storms block it).
+export function solarPerSol(state: GameState, base: BaseState): number {
   const panels = countBuildings(base, 'solar_panel');
-  return (R.landerSolarPerSol + panels * R.solarPanelPerSol) * R.marsSunlight * sunlight(time);
+  const full = (R.landerSolarPerSol + panels * R.solarPanelPerSol) * R.marsSunlight;
+  return full * sunlight(state.time) * solarFactor(state);
+}
+
+// Power a building (or the lander) uses per sol right now. On a cold night,
+// shelters (lander + habitats) need extra Power for their heaters.
+export function powerUse(state: GameState, kind: BuildingKind | 'lander'): number {
+  const heat = kind === 'lander' || kind === 'habitat' ? heatPerShelterPerSol(state) : 0;
+  return R.powerUsePerSol[kind] + heat;
 }
 
 // --- The per-step update ---
 
 export function updateResources(state: GameState, dt: number, events: GameEvent[]): void {
   for (const base of state.bases) {
-    if (base.crew <= 0) continue; // an empty base does nothing (wrecks come in M3)
+    if (base.status !== 'active' || base.crew <= 0) continue; // a wreck does nothing
     updatePower(state, base, dt, events);
     updateLifeSupport(base, dt, events);
   }
@@ -63,7 +72,7 @@ export function updateResources(state: GameState, dt: number, events: GameEvent[
 // When there isn't enough, the lowest-priority buildings switch off.
 function updatePower(state: GameState, base: BaseState, dt: number, events: GameEvent[]): void {
   const perSol = dt / BALANCE.sol.seconds; // converts a "per sol" rate into this step
-  const production = solarPerSol(base, state.time);
+  const production = solarPerSol(state, base);
   let available = base.stored.power + production * perSol;
   let usePerSol = 0;
   const wasOut = !base.landerPowered || base.buildings.some((b) => !b.powered);
@@ -72,7 +81,7 @@ function updatePower(state: GameState, base: BaseState, dt: number, events: Game
   const canPay = (cost: number, wasOn: boolean) => available >= cost + (wasOn ? 0 : R.restartReserve);
 
   // The lander always gets Power first: it keeps the crew alive.
-  const landerUse = R.powerUsePerSol.lander;
+  const landerUse = powerUse(state, 'lander');
   base.landerPowered = canPay(landerUse * perSol, base.landerPowered);
   if (base.landerPowered) {
     available -= landerUse * perSol;
@@ -83,7 +92,7 @@ function updatePower(state: GameState, base: BaseState, dt: number, events: Game
   for (const kind of powerOrder(base.powerPriority)) {
     for (const b of base.buildings) {
       if (b.kind !== kind) continue;
-      const use = R.powerUsePerSol[b.kind];
+      const use = powerUse(state, b.kind);
       b.powered = canPay(use * perSol, b.powered);
       if (b.powered) {
         available -= use * perSol;

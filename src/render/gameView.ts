@@ -6,6 +6,7 @@ import { BALANCE } from '../config/balance';
 import type { GameEvent } from '../core/events';
 import { sunlight, timeOfSol } from '../core/dayNight';
 import { depositRadius, magnetRadius } from '../core/growth';
+import { flareCoverage } from '../core/crew';
 import type { GameState, PlayerState } from '../core/state';
 import { findPlayer } from '../core/state';
 import { sampleHeight } from '../core/terrain';
@@ -14,6 +15,7 @@ import type { PickupKind } from '../config/balance';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RENDER_STYLE, THEME } from '../ui/theme';
+import { createDisasterFx, createLandingMarker, createShieldDome } from './disasterFx';
 import { animateCharacter, createModel } from './models';
 import { createTerrainMesh } from './terrainMesh';
 
@@ -30,10 +32,22 @@ export interface GameView {
 
 interface BaseView {
   group: THREE.Group; // positioned at the base center
+  launch: number; // which landing this view shows (a relaunched base gets a fresh view)
   ring: THREE.Mesh;
+  dome: THREE.Mesh; // shield bubble, shown during solar flares
   builtIds: Set<number>;
   markers: Map<number, THREE.Mesh>; // "no power" marker per building id
   landerMarker: THREE.Mesh;
+}
+
+interface WreckView {
+  obj: THREE.Group;
+  ring: THREE.Mesh; // shows how close to walk to absorb it
+}
+
+interface DropView {
+  capsule: THREE.Group;
+  marker: THREE.Mesh;
 }
 
 interface PickupView {
@@ -55,6 +69,9 @@ interface PopAnim {
 
 const POP_TIME = 0.45; // seconds for a new building to "pop" into place
 const PICKUP_DRAW_DISTANCE = 190; // studs from the player; beyond this pickups aren't drawn
+const DROP_FALL_TIME = 3; // a supply capsule is seen falling for the last few seconds
+const DROP_FALL_HEIGHT = 140;
+const SHAKE_TIME = 0.8; // camera shake when a disaster hits
 
 // Lighting at night vs. noon (visual only). Night stays bright enough to play.
 const LIGHT = {
@@ -168,7 +185,11 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
   const rovers = new Map<string, THREE.Group>();
   const bases = new Map<string, BaseView>();
   const pickups = new Map<number, PickupView>();
+  const wrecks = new Map<number, WreckView>();
+  const drops = new Map<number, DropView>();
   const pops: PopAnim[] = [];
+  const fx = createDisasterFx(scene);
+  let shake = 0;
 
   // Magnet ring under the local player's rover, so kids can see their pull range.
   const thin = RENDER_STYLE.ringStyle === 'thin';
@@ -193,6 +214,12 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
       let view = bases.get(base.id);
       const owner = findPlayer(s, base.ownerId);
       const color = owner ? teamColor(owner) : 0xffffff;
+      // A relaunched base landed somewhere new: throw the old view away.
+      if (view && view.launch !== base.launches) {
+        scene.remove(view.group);
+        bases.delete(base.id);
+        view = undefined;
+      }
       if (!view) {
         const group = new THREE.Group();
         group.position.set(base.pos.x, heightAt(base.pos.x, base.pos.z), base.pos.z);
@@ -203,11 +230,23 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
         group.add(ring);
         const landerMarker = createMarker(13);
         group.add(landerMarker);
+        const dome = createShieldDome();
+        group.add(dome);
         scene.add(group);
-        view = { group, ring, builtIds: new Set(), markers: new Map(), landerMarker };
+        view = { group, launch: base.launches, ring, dome, builtIds: new Set(), markers: new Map(), landerMarker };
         bases.set(base.id, view);
+        if (base.launches > 1) pops.push({ obj: group, age: 0 }); // the new lander pops in
       }
+      // A wrecked base is drawn as a wreck instead (see syncWrecks).
+      view.group.visible = base.status === 'active';
       view.ring.scale.setScalar(depositRadius(base));
+      // Shield bubble during a flare: more solid = better shielded.
+      const flare = fx.flareAmount();
+      view.dome.visible = flare > 0.01;
+      if (view.dome.visible) {
+        view.dome.scale.setScalar(depositRadius(base) * 0.85);
+        (view.dome.material as THREE.ShaderMaterial).uniforms.opacity.value = flare * (0.3 + 0.7 * flareCoverage(base, s.disaster?.flareClass ?? null));
+      }
 
       for (const b of base.buildings) {
         if (view.builtIds.has(b.id)) continue;
@@ -310,6 +349,15 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
   }
 
   function syncPickups(s: GameState, time: number, focus: { x: number; z: number }) {
+    // Salvage and supply pickups disappear for good: remove their models too.
+    if (pickups.size > s.pickups.length) {
+      const alive = new Set(s.pickups.map((p) => p.id));
+      for (const [id, view] of pickups) {
+        if (alive.has(id)) continue;
+        scene.remove(view.obj);
+        pickups.delete(id);
+      }
+    }
     for (const p of s.pickups) {
       let view = pickups.get(p.id);
       if (!view || view.kind !== p.kind) {
@@ -358,6 +406,61 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
       // Rise from the backpack to above the head, then fade out.
       pop.sprite.position.set(me.pos.x, heightAt(me.pos.x, me.pos.z) + 6 + t * 5, me.pos.z);
       pop.sprite.material.opacity = 1 - t * t;
+    }
+  }
+
+  // Wrecks: a broken lander in the old owner's color, with a dashed ring
+  // showing how close to walk to absorb it.
+  function syncWrecks(s: GameState) {
+    const alive = new Set<number>();
+    for (const w of s.wrecks) {
+      alive.add(w.id);
+      if (wrecks.has(w.id)) continue;
+      const color = THEME.team[w.colorIndex % THEME.team.length];
+      const obj = createModel('wreck', color);
+      obj.position.set(w.pos.x, heightAt(w.pos.x, w.pos.z), w.pos.z);
+      obj.rotation.y = w.id; // any angle, so wrecks don't all look the same
+      const ring = createGroundRing(color, 0.94, 0.6, 24);
+      ring.scale.setScalar(BALANCE.wrecks.absorbRadius);
+      ring.position.y = 0.4;
+      obj.add(ring);
+      scene.add(obj);
+      wrecks.set(w.id, { obj, ring });
+      pops.push({ obj, age: 0 });
+    }
+    for (const [id, view] of wrecks) {
+      if (alive.has(id)) continue;
+      scene.remove(view.obj);
+      wrecks.delete(id);
+    }
+  }
+
+  // Supply drops: a pulsing ring where it will land, and the capsule
+  // floating down on its parachute for the last few seconds.
+  function syncDrops(s: GameState) {
+    const alive = new Set<number>();
+    for (const d of s.supplyDrops) {
+      alive.add(d.id);
+      let view = drops.get(d.id);
+      if (!view) {
+        const capsule = createModel('supply_drop');
+        const marker = createLandingMarker();
+        scene.add(capsule, marker);
+        view = { capsule, marker };
+        drops.set(d.id, view);
+      }
+      const ground = heightAt(d.pos.x, d.pos.z);
+      view.marker.position.set(d.pos.x, ground + 0.4, d.pos.z);
+      view.marker.scale.setScalar(4 + Math.sin(s.time * 5) * 0.6);
+      const left = d.landsAt - s.time;
+      view.capsule.visible = left < DROP_FALL_TIME;
+      view.capsule.position.set(d.pos.x, ground + Math.max(0, left / DROP_FALL_TIME) * DROP_FALL_HEIGHT, d.pos.z);
+      view.capsule.rotation.y = s.time * 0.6;
+    }
+    for (const [id, view] of drops) {
+      if (alive.has(id)) continue;
+      scene.remove(view.capsule, view.marker);
+      drops.delete(id);
     }
   }
 
@@ -431,6 +534,8 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
   return {
     update(s, events, dt) {
       syncBases(s);
+      syncWrecks(s);
+      syncDrops(s);
       syncRovers(s, dt);
       const me = findPlayer(s, localPlayerId);
       syncPickups(s, s.time, me ? me.pos : { x: 0, z: 0 });
@@ -438,6 +543,14 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
       for (const pop of grabPops) pop.age += dt;
       spawnGrabPops(s, events);
       updateDayNight(s.time);
+      const center = me ? new THREE.Vector3(me.pos.x, heightAt(me.pos.x, me.pos.z), me.pos.z) : new THREE.Vector3();
+      fx.update(s, dt, center, scene.fog as THREE.Fog, scene.background as THREE.Color, sun);
+      if (skyDome) {
+        // Keep the sky dome's horizon in step with the (possibly tinted) fog.
+        const u = (skyDome.material as THREE.ShaderMaterial).uniforms;
+        (u.horizon.value as THREE.Color).copy((scene.fog as THREE.Fog).color);
+      }
+      if (events.some((e) => e.type === 'DisasterStarted')) shake = SHAKE_TIME;
       const bob = Math.sin(s.time * 4) * 0.4;
       for (const view of bases.values()) {
         for (const m of view.markers.values()) m.rotation.y = s.time * 2;
@@ -451,6 +564,13 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
         magnetRing.scale.setScalar(magnetRadius(s, me));
         updateCamera(new THREE.Vector3(me.pos.x, ground, me.pos.z), me.heading, dt, firstFrame);
         firstFrame = false;
+      }
+      // A short rumble when a disaster hits (visual only).
+      if (shake > 0) {
+        shake = Math.max(0, shake - dt);
+        const k = (shake / SHAKE_TIME) * 0.8;
+        camera.position.x += (Math.random() - 0.5) * k;
+        camera.position.y += (Math.random() - 0.5) * k;
       }
       stars.position.copy(camera.position);
       if (skyDome) skyDome.position.copy(camera.position);

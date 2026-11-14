@@ -185,6 +185,15 @@ export function createGameAudio(localPlayerId: string) {
       if (!context || context.state !== 'running' || muted) return;
       const now = context.currentTime;
       for (const event of events) {
+        // Disasters hit everyone, so they always play.
+        if (event.type === 'DisasterWarning') {
+          [880, 660, 880, 660].forEach((note, i) => tone(note, now + i * 0.2, 0.16, 0.06, 'square'));
+          continue;
+        }
+        if (event.type === 'DisasterStarted') {
+          tone(110, now, 1.4, 0.16, 'sawtooth', effects, 55); // low rumble
+          continue;
+        }
         const mine = 'playerId' in event ? event.playerId === localPlayerId
           : 'baseId' in event && event.baseId === localBaseId;
         if (!mine) continue;
@@ -192,7 +201,19 @@ export function createGameAudio(localPlayerId: string) {
           tone(660, now, 0.12, 0.065, 'sine', effects, 990); lastPickup = now;
         } else if (event.type === 'CargoDeposited') {
           [392, 494, 587].forEach((note, i) => tone(note, now + i * 0.07, 0.24, 0.07));
-        } else if (event.type === 'BuildingBuilt' || event.type === 'CrewAdded') {
+        } else if (event.type === 'MissionEnded' && event.stars > 0) {
+          // One rising note per star earned.
+          [784, 988, 1175].slice(0, event.stars).forEach((note, i) => tone(note, now + i * 0.14, 0.4, 0.07));
+        } else if (event.type === 'SupplyDropCalled') {
+          [1200, 1500].forEach((note, i) => tone(note, now + i * 0.1, 0.08, 0.05, 'square')); // radio blips
+        } else if (event.type === 'SupplyDropLanded') {
+          tone(90, now, 0.3, 0.2, 'triangle', effects, 45); // thump
+          [523, 784].forEach((note, i) => tone(note, now + 0.15 + i * 0.1, 0.3, 0.06));
+        } else if (event.type === 'BaseWrecked') {
+          [392, 330, 262, 196].forEach((note, i) => tone(note, now + i * 0.22, 0.4, 0.08, 'triangle'));
+        } else if (event.type === 'SupplyDropDenied') {
+          tone(220, now, 0.2, 0.07, 'triangle');
+        } else if (event.type === 'BuildingBuilt' || event.type === 'CrewAdded' || event.type === 'WreckAbsorbed' || event.type === 'BaseRelaunched') {
           [523, 659, 784, 1047].forEach((note, i) => tone(note, now + i * 0.09, 0.35, 0.055));
         } else if (['CargoFull', 'PowerOut', 'LifeSupportEmpty', 'CrewSick', 'CrewLost'].includes(event.type) && now - lastWarning > 1) {
           tone(294, now, 0.18, 0.075, 'triangle');

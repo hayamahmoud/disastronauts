@@ -8,8 +8,10 @@ import { BALANCE } from '../config/balance';
 import { sampleHeight } from './terrain';
 import type { PlayerInput, PlayerState, TerrainGrid } from './state';
 
-export function moveRover(player: PlayerState, input: PlayerInput | undefined, terrain: TerrainGrid, dt: number): void {
+// speedFactor < 1 slows the astronaut down (e.g. wind in a dust storm).
+export function moveRover(player: PlayerState, input: PlayerInput | undefined, terrain: TerrainGrid, dt: number, speedFactor = 1): void {
   const R = BALANCE.rover;
+  const maxSpeed = R.maxSpeed * speedFactor;
 
   // 1. Desired velocity from input (diagonals are not faster).
   const turnAndWalk = input !== undefined && (input.turn !== undefined || input.forward !== undefined);
@@ -30,8 +32,8 @@ export function moveRover(player: PlayerState, input: PlayerInput | undefined, t
     iz /= inputLen;
   }
   const blend = Math.min(1, R.acceleration * dt);
-  player.vel.x += (ix * R.maxSpeed - player.vel.x) * blend;
-  player.vel.z += (iz * R.maxSpeed - player.vel.z) * blend;
+  player.vel.x += (ix * maxSpeed - player.vel.x) * blend;
+  player.vel.z += (iz * maxSpeed - player.vel.z) * blend;
 
   const speed = Math.hypot(player.vel.x, player.vel.z);
   if (speed < 0.01) {
