@@ -2,7 +2,8 @@
 // it by dt seconds. Same seed + same inputs = exactly the same game.
 // On Roblox this is the server Script: it owns the state, clients only send inputs.
 
-import { BALANCE } from '../config/balance';
+import { BALANCE, type BotPersonality } from '../config/balance';
+import { botInput, createBotState } from './bots';
 import { updateCrew } from './crew';
 import { updateDayNight } from './dayNight';
 import { setupDisasters, updateDisasters, walkSpeedFactor } from './disasters';
@@ -12,6 +13,7 @@ import { moveRover } from './movement';
 import { spawnInitialPickups, updateDeposits, updatePickups } from './pickups';
 import { updateResources } from './resources';
 import { createRng } from './rng';
+import { createRound, updateLobby, updateRoundTimer } from './round';
 import type { BaseState, GameState, PlayerInput, PlayerState, TerrainGrid } from './state';
 import { emptyCargo, findBase } from './state';
 import { requestSupplyDrop, rollLightMinutes, updateSupplyDrops } from './supplyDrop';
@@ -21,6 +23,7 @@ import { pickBaseSpawn, updateWrecks } from './wrecks';
 export interface PlayerSetup {
   id: string;
   name: string;
+  bot?: BotPersonality; // set = a computer rival with this personality
 }
 
 export interface GameSetup {
@@ -28,6 +31,11 @@ export interface GameSetup {
   players: PlayerSetup[];
   terrain?: TerrainGrid; // defaults to the placeholder crater
   disasters?: boolean; // defaults to true; tests can turn disasters off
+  // Rounds (lobby countdown + time limit). Defaults to true; tests turn them
+  // off so the game starts right away and never ends.
+  rounds?: boolean;
+  lobbySeconds?: number; // defaults to BALANCE.round.lobbySeconds
+  roundSeconds?: number; // defaults to BALANCE.round.seconds
 }
 
 export function createGame(setup: GameSetup): GameState {
@@ -47,6 +55,11 @@ export function createGame(setup: GameSetup): GameState {
     wrecks: [],
     supplyDrops: [],
     lightMinutes: 0,
+    round: createRound({
+      timed: setup.rounds ?? true,
+      lobbySeconds: setup.lobbySeconds ?? BALANCE.round.lobbySeconds,
+      seconds: setup.roundSeconds ?? BALANCE.round.seconds,
+    }),
   };
 
   setup.players.forEach((ps, index) => {
@@ -84,6 +97,7 @@ export function createGame(setup: GameSetup): GameState {
       stars: 0,
       missionsDone: 0,
       supplyCooldown: 0,
+      bot: ps.bot ? createBotState(ps.bot) : null,
     };
     state.bases.push(base);
     state.players.push(player);
@@ -100,8 +114,17 @@ export function createGame(setup: GameSetup): GameState {
 export function step(state: GameState, inputs: PlayerInput[], dt: number): GameEvent[] {
   const events: GameEvent[] = [];
 
+  // Lobby: everyone has landed but waits for the countdown. Ended: frozen.
+  if (state.round.phase === 'lobby') {
+    updateLobby(state, dt, events);
+    state.tick += 1;
+    return events;
+  }
+  if (state.round.phase === 'ended') return events;
+
   for (const player of state.players) {
-    const input = findInput(inputs, player.id);
+    // Bots decide their own input here, the same shape a human's input has.
+    const input = player.bot ? botInput(state, player, dt) : findInput(inputs, player.id);
     moveRover(player, input, state.terrain, dt, walkSpeedFactor(state));
     applyCommands(state, player, input, events);
   }
@@ -117,6 +140,7 @@ export function step(state: GameState, inputs: PlayerInput[], dt: number): GameE
 
   state.tick += 1;
   state.time += dt;
+  updateRoundTimer(state, events);
   return events;
 }
 

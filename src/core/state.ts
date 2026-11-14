@@ -4,7 +4,7 @@
 // Coordinates: gameplay works on the ground plane {x, z}. Height (y) comes
 // from the terrain grid. 1 unit = 1 Roblox stud. Y is up.
 
-import type { BuildingKind, DisasterKind, FlareClass, PickupKind, PowerPriority, ResourceKind } from '../config/balance';
+import type { BotPersonality, BuildingKind, DisasterKind, FlareClass, PickupKind, PowerPriority, ResourceKind } from '../config/balance';
 import type { RngState } from './rng';
 
 export interface Vec2 {
@@ -57,6 +57,26 @@ export interface PlayerState {
   stars: number; // stars earned from missions so far
   missionsDone: number;
   supplyCooldown: number; // seconds until another supply drop can be called
+  bot: BotState | null; // null = a human; otherwise a computer rival's memory
+}
+
+// A computer rival's "brain". It walks around like a player would:
+//   wander   → nothing in sight, walk somewhere new
+//   seek     → walk to the best pickup it can see
+//   wreck    → walk to a wreck to absorb it
+//   home     → backpack full (or a disaster is coming): walk home to unload
+//   shelter  → stay home until the danger is over
+export type BotMode = 'wander' | 'seek' | 'wreck' | 'home' | 'shelter';
+
+export interface BotState {
+  personality: BotPersonality;
+  mode: BotMode;
+  targetPickupId: number | null; // the pickup it's heading for (seek)
+  targetWreckId: number | null; // the wreck it's heading for (wreck)
+  wanderTo: Vec2 | null; // where it's walking (wander)
+  thinkTimer: number; // seconds until it looks around again
+  targetTimer: number; // seconds spent on the current target
+  ignorePickupId: number | null; // a pickup it gave up on (e.g. stuck behind a hill)
 }
 
 // Missions: "bring N of something home" or "fill your battery to N".
@@ -150,6 +170,35 @@ export interface SupplyDropState {
   landsAt: number;
 }
 
+// Round flow: lobby countdown → timed play → podium.
+export type RoundPhase = 'lobby' | 'playing' | 'ended';
+
+export interface ScoreBreakdown {
+  crew: number; // points from healthy crew
+  buildings: number; // points from powered buildings
+  stored: number; // points from stored resources
+  missions: number; // points from mission stars
+  total: number;
+}
+
+export interface Standing {
+  playerId: string;
+  name: string;
+  colorIndex: number;
+  isBot: boolean;
+  rank: number; // 1 = winner
+  score: ScoreBreakdown;
+}
+
+export interface RoundState {
+  phase: RoundPhase;
+  countdown: number; // lobby seconds left
+  timed: boolean; // false = the round never ends (tests, free play)
+  length: number; // seconds of play; time left = length - state.time
+  endWarned: boolean; // the "30 seconds left" message was sent
+  results: Standing[] | null; // final standings, set when the round ends
+}
+
 export interface GameState {
   seed: number;
   tick: number;
@@ -167,6 +216,7 @@ export interface GameState {
   supplyDrops: SupplyDropState[];
   // How long a radio signal takes between Earth and Mars this game, in minutes.
   lightMinutes: number;
+  round: RoundState;
 }
 
 export function emptyCargo(): Cargo {

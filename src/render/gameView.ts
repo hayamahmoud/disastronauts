@@ -28,6 +28,8 @@ export interface GameView {
   // Top view only turns when the player drags it with the mouse. 0 = north up.
   // The keys and the mini-map use this so "W" always means "up the screen".
   getMapYaw(): number;
+  // Remove the canvas and free the GPU memory (used before "Play again").
+  dispose(): void;
 }
 
 interface BaseView {
@@ -583,6 +585,12 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
     },
     getCameraMode: () => cameraMode,
     getMapYaw: () => mapYaw,
+    dispose() {
+      window.removeEventListener('resize', resize);
+      renderer.dispose();
+      renderer.forceContextLoss(); // browsers only allow a few 3D canvases at once
+      renderer.domElement.remove();
+    },
   };
 }
 

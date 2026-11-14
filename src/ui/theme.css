@@ -26,6 +26,10 @@
   --color-frost: rgba(138, 156, 200, 0.4);
   --color-alert: #7a2433; /* the banner while a disaster is happening */
   --color-star: #ffd34a;
+  --color-dim: rgba(43, 33, 64, 0.55); /* screen behind the lobby and podium */
+  --color-silver: #d9d4e6; /* 2nd place step */
+  --color-bronze: #e0a070; /* 3rd place step */
+  --color-link: #9e3b2e;
 
   /* One color per chip. Same colors as the badges over pickups (theme.ts badge*). */
   --c-power: #ffc54a;
@@ -501,6 +505,268 @@ body {
   line-height: 0;
 }
 
+/* ---------- Rounds (M4) ---------- */
+
+/* Scoreboard: round clock + live Colony Scores, right side under the mini-map. */
+.scoreboard {
+  position: absolute;
+  top: 250px;
+  right: 14px;
+  width: 170px;
+  padding: var(--space-s);
+  border-radius: var(--radius-m);
+  background: var(--color-plum);
+  box-shadow: 0 4px 0 var(--color-shadow);
+  font-size: var(--font-size-s);
+  pointer-events: auto; /* so the hover explanation shows */
+}
+.scoreboard-clock {
+  text-align: center;
+  font-size: var(--font-size-l);
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+}
+.scoreboard-clock.is-hurry {
+  color: var(--color-bad);
+  animation: wiggle 0.5s ease-in-out infinite;
+}
+.scoreboard-rows,
+.podium-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.scoreboard-rows li,
+.podium-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px var(--space-xs);
+  border-radius: var(--radius-s);
+}
+.scoreboard-rows li.is-me,
+.podium-list li.is-me {
+  background: var(--color-track);
+  font-weight: 600;
+}
+.scoreboard-rank {
+  width: 1em;
+  opacity: 0.7;
+}
+.scoreboard-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.scoreboard-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scoreboard-score {
+  font-weight: 600;
+}
+
+/* Lobby: big countdown in the middle and one card per player. */
+.lobby {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-m);
+  background: var(--color-dim);
+  text-align: center;
+  transition: opacity 0.4s;
+}
+.lobby.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s, visibility 0s 0.4s;
+}
+.lobby.is-go {
+  background: transparent;
+}
+.lobby-title {
+  font: italic 700 40px/1 var(--font-main);
+  text-shadow: 0 3px 0 var(--color-logo-shadow), 0 0 18px var(--color-logo-glow);
+}
+.lobby-count {
+  font: 700 120px/1 var(--font-main);
+  color: var(--color-cream);
+  text-shadow: 0 6px 0 var(--color-logo-shadow);
+}
+.lobby-count.is-pop {
+  animation: pop 0.4s ease-out;
+}
+.lobby-goal {
+  font-size: var(--font-size-l);
+}
+.lobby-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-m);
+  padding: 0 var(--space-m);
+}
+.lobby-card {
+  width: 160px;
+  padding: var(--space-m);
+  border: 3px solid var(--team);
+  border-radius: var(--radius-m);
+  background: var(--color-plum);
+  box-shadow: 0 4px 0 var(--color-shadow);
+}
+.lobby-card.is-me {
+  background: var(--color-plum-solid);
+}
+.lobby-card-dot,
+.podium-step-dot {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--team);
+  border: 2px solid var(--color-cream);
+}
+.lobby-card-name {
+  font-size: var(--font-size-l);
+  font-weight: 600;
+}
+.lobby-card-style {
+  font-size: var(--font-size-s);
+  opacity: 0.85;
+}
+
+/* Podium: the end-of-round card. */
+.podium {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-m);
+  background: var(--color-dim);
+  pointer-events: auto;
+  overflow-y: auto;
+  animation: fade-in 0.5s ease-out;
+}
+.podium-card {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-m) 22px;
+  border: 3px solid var(--color-orange);
+  border-radius: var(--radius-m);
+  background: var(--color-plum-solid);
+  box-shadow: 0 6px 0 var(--color-shadow);
+  text-align: center;
+}
+.podium-title {
+  font: italic 700 36px/1.2 var(--font-main);
+  text-shadow: 0 3px 0 var(--color-logo-shadow);
+}
+.podium-steps {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--space-s);
+  margin: var(--space-m) 0;
+}
+.podium-step {
+  width: 130px;
+}
+.podium-step-top {
+  padding-bottom: var(--space-xs);
+}
+.podium-step-top .icon {
+  display: flex;
+  font-size: 32px;
+}
+.podium-step-name {
+  font-weight: 600;
+}
+.podium-step.is-me .podium-step-name {
+  color: var(--color-star);
+}
+.podium-step-score {
+  font-size: var(--font-size-l);
+  font-weight: 700;
+}
+.podium-step-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-s) var(--radius-s) 0 0;
+  color: var(--color-plum-solid);
+  font-size: var(--font-size-l);
+  font-weight: 700;
+  animation: rise 0.6s ease-out;
+  transform-origin: bottom;
+}
+.is-place-1 .podium-step-block {
+  height: 110px;
+  background: var(--color-star);
+}
+.is-place-2 .podium-step-block {
+  height: 80px;
+  background: var(--color-silver);
+}
+.is-place-3 .podium-step-block {
+  height: 55px;
+  background: var(--color-bronze);
+}
+.podium-me {
+  font-size: var(--font-size-l);
+  font-weight: 600;
+}
+.podium-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xs) var(--space-m);
+  margin: var(--space-xs) 0 var(--space-m);
+  font-size: var(--font-size-s);
+}
+.podium-list {
+  margin: 0 auto var(--space-m);
+  max-width: 300px;
+  text-align: left;
+}
+.podium-fact {
+  padding: var(--space-s) var(--space-m);
+  border-radius: var(--radius-m);
+  background: var(--color-cream);
+  color: var(--color-plum-solid);
+  text-align: left;
+}
+.podium-fact-head {
+  font-weight: 700;
+}
+.podium-fact-text {
+  font-size: var(--font-size-m);
+}
+.podium-fact-source {
+  font-size: var(--font-size-s);
+  color: var(--color-link);
+}
+.podium-buttons {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-m);
+  margin-top: var(--space-m);
+}
+.podium-button {
+  position: static; /* in the card's flow, not pinned to a corner */
+}
+.podium-button.is-main {
+  background: var(--color-orange);
+  color: var(--color-cream);
+}
+
 /* Small screens: chips wrap under the logo, keys hide (they're for keyboards anyway). */
 @media (max-width: 760px) {
   .hud-chips {
@@ -533,6 +799,21 @@ body {
     white-space: normal;
     width: 90%;
   }
+  .scoreboard {
+    width: 140px;
+    top: auto;
+    bottom: 190px;
+  }
+  .lobby-count {
+    font-size: 80px;
+  }
+  .lobby-card {
+    width: 130px;
+    padding: var(--space-s);
+  }
+  .podium-step {
+    width: 95px;
+  }
   .message {
     top: 240px;
     font-size: var(--font-size-m);
@@ -542,6 +823,22 @@ body {
 }
 
 /* ---------- Animations ---------- */
+@keyframes pop {
+  from {
+    transform: scale(1.6);
+    opacity: 0.3;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    transform: scaleY(0);
+  }
+}
 @keyframes hit {
   50% {
     box-shadow:

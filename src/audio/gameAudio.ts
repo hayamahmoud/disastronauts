@@ -194,6 +194,23 @@ export function createGameAudio(localPlayerId: string) {
           tone(110, now, 1.4, 0.16, 'sawtooth', effects, 55); // low rumble
           continue;
         }
+        // Round flow: countdown beeps, a GO chord, and a fanfare at the end.
+        if (event.type === 'RoundCountdown') {
+          if (event.secondsLeft <= 3) tone(660, now, 0.15, 0.08, 'square');
+          continue;
+        }
+        if (event.type === 'RoundStarted') {
+          [523, 659, 784].forEach((note) => tone(note, now, 0.5, 0.06, 'square'));
+          continue;
+        }
+        if (event.type === 'RoundEndingSoon') {
+          [988, 784].forEach((note, i) => tone(note, now + i * 0.18, 0.2, 0.07, 'triangle'));
+          continue;
+        }
+        if (event.type === 'RoundEnded') {
+          [523, 659, 784, 1047, 784, 1047].forEach((note, i) => tone(note, now + i * 0.13, i === 5 ? 0.8 : 0.22, 0.07));
+          continue;
+        }
         const mine = 'playerId' in event ? event.playerId === localPlayerId
           : 'baseId' in event && event.baseId === localBaseId;
         if (!mine) continue;

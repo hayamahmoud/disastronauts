@@ -296,7 +296,10 @@ export type UiIconId =
   | 'icon_star'
   | 'icon_radio'
   | 'icon_mission'
-  | 'icon_wreck';
+  | 'icon_wreck'
+  | 'icon_trophy'
+  | 'icon_timer'
+  | 'icon_fact';
 
 export interface UiIconEntry {
   file?: string;
@@ -326,6 +329,9 @@ export const UI_ICONS: Record<UiIconId, UiIconEntry> = {
   icon_radio: { emoji: '📡' }, // calling Earth for a supply drop
   icon_mission: { emoji: '🎯' },
   icon_wreck: { emoji: '💥' },
+  icon_trophy: { emoji: '🏆' }, // round winner
+  icon_timer: { emoji: '⏱️' }, // round clock
+  icon_fact: { emoji: '💡' }, // "What you learned" on the podium
 };
 
 // The badge floating over each pickup shows what it's FOR, using the same icon

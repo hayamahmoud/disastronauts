@@ -161,7 +161,7 @@ export function createHud(
 
   const message = createMessage(root);
   // Same icons as the badges over pickups and the HUD chips.
-  message.show('Grab ⚡ 🫁 🛡️ to fill your bars, 🔨 to build. Then walk home!', 6);
+  const OPENING = 'Grab ⚡ 🫁 🛡️ to fill your bars, 🔨 to build. Then walk home!';
 
   // Only rebuild things when they actually change.
   let lastSol = '';
@@ -172,11 +172,17 @@ export function createHud(
   let lastAlert = '';
   let lastCall = '';
   let lastOverlay = '';
+  let shownOpening = false;
 
   return {
     update(state, events) {
       const me = findPlayer(state, localPlayerId);
       if (!me) return;
+      // Untimed games have no lobby, so show the opening tip on the first frame.
+      if (!shownOpening && state.round.phase === 'playing') {
+        shownOpening = true;
+        message.show(OPENING, 6);
+      }
       const base = findBase(state, me.baseId);
       const cap = cargoCapacity(state, me);
       const full = me.cargoCount >= cap;
@@ -255,6 +261,8 @@ export function createHud(
           message.show(why[e.reason], 2.5);
         } else if (e.type === 'SupplyDropLanded' && e.playerId === localPlayerId) {
           message.show('📦 Your supply drop landed near your base!', 3);
+        } else if (e.type === 'RoundEndingSoon') {
+          message.show(`⏱️ ${e.secondsLeft} seconds left! Make every point count!`, 4);
         }
       }
     },
