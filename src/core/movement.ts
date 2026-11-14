@@ -1,5 +1,6 @@
 // Rover driving: no physics engine, just simple rules.
 // - Velocity eases toward the joystick/keys direction.
+// - Or, with "turn & walk" input: A/D turn the heading, W/S walk forward/back.
 // - Uphill slopes slow you down; slopes steeper than maxClimbSlope are walls.
 // - If blocked, the rover tries to slide along the wall (x-only or z-only).
 
@@ -11,8 +12,18 @@ export function moveRover(player: PlayerState, input: PlayerInput | undefined, t
   const R = BALANCE.rover;
 
   // 1. Desired velocity from input (diagonals are not faster).
+  const turnAndWalk = input !== undefined && (input.turn !== undefined || input.forward !== undefined);
   let ix = input ? input.moveX : 0;
   let iz = input ? input.moveZ : 0;
+  if (turnAndWalk) {
+    // Turn first, then walk along the new facing. At heading 0 forward is -Z.
+    const turn = clamp1(input.turn ?? 0);
+    const forward = clamp1(input.forward ?? 0);
+    player.heading = wrapAngle(player.heading - turn * R.turnSpeed * dt);
+    const amount = forward < 0 ? forward * R.backUpSpeedFactor : forward;
+    ix = -Math.sin(player.heading) * amount;
+    iz = -Math.cos(player.heading) * amount;
+  }
   const inputLen = Math.hypot(ix, iz);
   if (inputLen > 1) {
     ix /= inputLen;
@@ -30,7 +41,8 @@ export function moveRover(player: PlayerState, input: PlayerInput | undefined, t
   }
 
   // Face the direction of travel. At heading 0 the model faces -Z.
-  player.heading = Math.atan2(-player.vel.x, -player.vel.z);
+  // (Turn & walk already set the heading, and backing up keeps it.)
+  if (!turnAndWalk) player.heading = Math.atan2(-player.vel.x, -player.vel.z);
 
   // 2. Uphill slows the rover down.
   const dirX = player.vel.x / speed;
@@ -61,6 +73,10 @@ export function moveRover(player: PlayerState, input: PlayerInput | undefined, t
   player.pos.x = Math.max(-half, Math.min(half, player.pos.x));
   player.pos.z = Math.max(-half, Math.min(half, player.pos.z));
 }
+
+const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
+// Keep an angle between -PI and PI.
+const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
 // Rise over run in the given direction, measured a few studs ahead.
 function slopeAlong(terrain: TerrainGrid, x: number, z: number, dirX: number, dirZ: number): number {

@@ -8,6 +8,7 @@ import { findBase, findPlayer } from './core/state';
 import { createKeyboardInput } from './input/keyboard';
 import { createGameView } from './render/gameView';
 import { createHud } from './ui/hud';
+import { createMinimap } from './ui/minimap';
 
 const LOCAL_PLAYER = 'p1';
 
@@ -31,6 +32,7 @@ function togglePowerPriority() {
 }
 
 const hud = createHud(document.getElementById('ui')!, LOCAL_PLAYER, state.terrain.isPlaceholder, togglePowerPriority);
+const minimap = createMinimap(document.getElementById('ui')!, LOCAL_PLAYER, () => view.getMapYaw());
 const keyboard = createKeyboardInput();
 keyboard.onKeyPress('KeyC', () => view.toggleCameraMode());
 keyboard.onKeyPress('KeyP', togglePowerPriority);
@@ -54,8 +56,14 @@ function frame(now: number) {
   const events: GameEvent[] = [];
   let steps = 0;
   while (accumulator >= BALANCE.sim.fixedDt && steps < BALANCE.sim.maxStepsPerFrame) {
+    // Behind view: A/D turn and W/S walk. Top view: W/A/S/D move up/left/down/right
+    // on the SCREEN, so we turn the keys by however far the map has been dragged.
     const move = keyboard.getMove();
-    const input = { playerId: LOCAL_PLAYER, moveX: move.x, moveZ: move.z, powerPriority: pendingPriority };
+    const steer = view.getCameraMode() === 'follow' ? keyboard.getTurnWalk() : {};
+    const yaw = view.getMapYaw();
+    const moveX = move.x * Math.cos(yaw) + move.z * Math.sin(yaw);
+    const moveZ = -move.x * Math.sin(yaw) + move.z * Math.cos(yaw);
+    const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, powerPriority: pendingPriority };
     pendingPriority = undefined; // a one-off command: send it once
     events.push(...step(state, [input], BALANCE.sim.fixedDt));
     accumulator -= BALANCE.sim.fixedDt;
@@ -65,6 +73,7 @@ function frame(now: number) {
 
   view.update(state, events, dt);
   hud.update(state, events);
+  minimap.update(state);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

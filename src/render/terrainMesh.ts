@@ -45,6 +45,7 @@ export function createTerrainMesh(grid: TerrainGrid): THREE.Mesh {
   faceted.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
+  mat.userData.outlineParameters = { visible: false }; // no cartoon outline on the ground
   const mesh = new THREE.Mesh(faceted, mat);
   mesh.receiveShadow = true;
   return mesh;
