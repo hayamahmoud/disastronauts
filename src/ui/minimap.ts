@@ -2,7 +2,8 @@
 // It faces the same way as the top view (north up until the player drags the
 // view round; an "N" on the rim always shows north). Shows you (an arrow pointing where you face), your base (a house,
 // pinned to the edge with an arrow when it's off the map), other bases and
-// players, and nearby pickups. It only READS the game state.
+// players, nearby pickups, wrecks (an ✕ in the old owner's color) and where
+// your supply drop will land (an orange ring). It only READS the game state.
 
 import { BALANCE, type PickupKind } from '../config/balance';
 import { depositRadius } from '../core/growth';
@@ -88,7 +89,7 @@ export function createMinimap(root: HTMLElement, localPlayerId: string, getYaw: 
 
       // Other bases (team-colored circles the size of their drop-off zone).
       for (const b of state.bases) {
-        if (b.id === me.baseId) continue;
+        if (b.id === me.baseId || b.status !== 'active') continue;
         const owner = findPlayer(state, b.ownerId);
         const q = toMap(b.pos.x, b.pos.z);
         ctx.fillStyle = css(THEME.team[(owner?.colorIndex ?? 0) % THEME.team.length]);
@@ -97,6 +98,29 @@ export function createMinimap(root: HTMLElement, localPlayerId: string, getYaw: 
         ctx.arc(q.x, q.y, Math.max(4, depositRadius(b) * scale), 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
+      }
+
+      // Wrecks: an X in the old owner's color.
+      for (const w of state.wrecks) {
+        const q = toMap(w.pos.x, w.pos.z);
+        ctx.strokeStyle = css(THEME.team[w.colorIndex % THEME.team.length]);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(q.x - 5, q.y - 5);
+        ctx.lineTo(q.x + 5, q.y + 5);
+        ctx.moveTo(q.x + 5, q.y - 5);
+        ctx.lineTo(q.x - 5, q.y + 5);
+        ctx.stroke();
+      }
+
+      // Where supply drops will land.
+      for (const d of state.supplyDrops) {
+        const q = toMap(d.pos.x, d.pos.z);
+        ctx.strokeStyle = css(THEME.landingMarker);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, 5, 0, Math.PI * 2);
+        ctx.stroke();
       }
 
       // Other players: small team-colored dots.
@@ -113,7 +137,7 @@ export function createMinimap(root: HTMLElement, localPlayerId: string, getYaw: 
 
       // Your base: a house. If it's off the map, pin it to the edge and point at it.
       const home = state.bases.find((b) => b.id === me.baseId);
-      if (home) {
+      if (home && home.status === 'active') {
         const q = toMap(home.pos.x, home.pos.z);
         const dist = Math.hypot(q.x - r, q.y - r); // in pixels
         const edge = r - 12;

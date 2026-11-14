@@ -60,7 +60,9 @@ export type AssetId =
   | 'pickup_crate'
   | 'pickup_ice'
   | 'pickup_regolith'
-  | 'pickup_solar';
+  | 'pickup_solar'
+  | 'wreck'
+  | 'supply_drop';
 
 // The "Cozy Outpost" look (picked at the D1 design checkpoint, see docs/ART_SPEC.md).
 export const ASSETS: Record<AssetId, AssetEntry> = {
@@ -220,6 +222,37 @@ export const ASSETS: Record<AssetId, AssetEntry> = {
       p('box', [2.0, 0.2, 1.3], [0, 0.52, 0], 'pickupSolar', { rot: [15, 20, -10], shiny: true }),
     ],
   },
+  // What's left of a base that lost its crew: a tipped-over, scorched lander
+  // with scattered panels. 'team' parts keep the old owner's color.
+  wreck: {
+    scale: 1,
+    rotationYOffset: 0,
+    placeholder: [
+      p('roundedBox', [7, 3.6, 5.4], [0, 1.4, 0], 'hull', { rot: [0, 0, 18] }),
+      p('box', [7.05, 0.35, 5.45], [-0.2, 0.3, 0], 'team', { rot: [0, 0, 18] }),
+      p('roundedBox', [3.2, 2.2, 2.6], [-1.2, 2.6, 0.4], 'scorch', { rot: [0, 0, 18] }),
+      p('box', [2.4, 0.15, 3.0], [5.2, 0.4, 1.8], 'solarCell', { rot: [0, 35, 8] }),
+      p('box', [2.0, 0.15, 1.6], [-4.6, 0.3, -2.2], 'hullDark', { rot: [10, -20, 0] }),
+      p('cylinder', [0.22, 6, 0.22], [3.6, 0.6, -2.4], 'hullDark', { rot: [0, 30, 80] }),
+      p('dome', [2.8, 0.9, 2.8], [6.2, 0.5, -2.6], 'hull', { rot: [150, 0, 20] }),
+      p('rock', [1.4, 0.8, 1.2], [-3.4, 0.3, 2.6], 'scorch'),
+      p('sphere', [0.5, 0.5, 0.5], [0.8, 3.6, -2.4], 'noPowerMarker', { glow: true }),
+    ],
+  },
+  // A supply capsule from Earth with a parachute on top.
+  supply_drop: {
+    scale: 1,
+    rotationYOffset: 0,
+    placeholder: [
+      p('cone', [3.2, 1.2, 3.2], [0, 0.6, 0], 'scorch', { rot: [180, 0, 0] }),
+      p('cylinder', [3.0, 2.6, 3.0], [0, 2.4, 0], 'hull'),
+      p('cylinder', [3.05, 0.4, 3.05], [0, 2.4, 0], 'accent'),
+      p('cone', [3.0, 1.6, 3.0], [0, 4.5, 0], 'hull'),
+      ...pair(p('cylinder', [0.06, 6, 0.06], [1.4, 8, 0], 'hullDark', { rot: [0, 0, 14] })),
+      p('dome', [9, 3, 9], [0, 10.6, 0], 'parachute'),
+      p('torus', [9, 0.3, 9], [0, 10.6, 0], 'accent'),
+    ],
+  },
 };
 
 // Maps game concepts to asset IDs, so the renderer never hardcodes them.
@@ -255,7 +288,15 @@ export type UiIconId =
   | 'icon_ice'
   | 'icon_solar'
   | 'icon_regolith'
-  | 'icon_build';
+  | 'icon_build'
+  | 'icon_dust_storm'
+  | 'icon_solar_flare'
+  | 'icon_cold_night'
+  | 'icon_warning'
+  | 'icon_star'
+  | 'icon_radio'
+  | 'icon_mission'
+  | 'icon_wreck';
 
 export interface UiIconEntry {
   file?: string;
@@ -277,6 +318,14 @@ export const UI_ICONS: Record<UiIconId, UiIconEntry> = {
   icon_solar: { emoji: '☀️' },
   icon_regolith: { emoji: '🪨' },
   icon_build: { emoji: '🔨' },
+  icon_dust_storm: { emoji: '🌪️' },
+  icon_solar_flare: { emoji: '🌞' },
+  icon_cold_night: { emoji: '🥶' },
+  icon_warning: { emoji: '⚠️' },
+  icon_star: { emoji: '⭐' },
+  icon_radio: { emoji: '📡' }, // calling Earth for a supply drop
+  icon_mission: { emoji: '🎯' },
+  icon_wreck: { emoji: '💥' },
 };
 
 // The badge floating over each pickup shows what it's FOR, using the same icon

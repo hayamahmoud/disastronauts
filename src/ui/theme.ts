@@ -59,6 +59,17 @@ export const THEME = {
   badgeShield: 0xb58cf0,
   badgeBuild: 0xf07a2e,
   noPowerMarker: 0xff5a4f, // floats over buildings that are switched off
+
+  // Disasters (M3): the sky and air change color while one is happening.
+  dustHaze: 0xc98a5a, // dust storm: thick orange-brown air
+  dustMote: 0xe8b07c, // blowing dust specks
+  flareGlow: 0xfff0b8, // solar flare: harsh pale-yellow light
+  frostHaze: 0x8a9cc8, // cold night: icy blue air
+  frostFlake: 0xeef6ff, // drifting frost crystals
+  shieldDome: 0x3f9ff0, // the bubble over a base during a flare (brighter = better shielded)
+  scorch: 0x3a2b2e, // burnt metal on wrecks
+  landingMarker: 0xf07a2e, // where a supply drop will land
+  parachute: 0xfff4ea,
 } as const;
 
 // How 3D materials are drawn. Part of the theme so a visual direction can

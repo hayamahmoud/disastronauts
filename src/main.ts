@@ -1,7 +1,7 @@
 // Entry point: connects the simulation (core) to the 3D view, the HUD and
 // the keyboard, and runs the game loop.
 
-import { BALANCE, type PowerPriority } from './config/balance';
+import { BALANCE, type DisasterKind, type PowerPriority } from './config/balance';
 import type { GameEvent } from './core/events';
 import { createGame, step } from './core/simulation';
 import { findBase, findPlayer } from './core/state';
@@ -22,24 +22,30 @@ const urlSeed = Number(new URLSearchParams(window.location.search).get('seed'));
 const seed = Number.isFinite(urlSeed) && urlSeed > 0 ? urlSeed : Math.floor(Math.random() * 1e9);
 console.info(`Disastronauts seed: ${seed} (add ?seed=${seed} to the URL to replay this map)`);
 
+const params = new URLSearchParams(window.location.search);
+
 let state: ReturnType<typeof createGame>;
 let view: ReturnType<typeof createGameView>;
 let hud: Hud;
 let minimap: ReturnType<typeof createMinimap>;
 let playing = false;
 const menu = createStartScreen(options => {
+  // Players 2-4 are computer explorers (until real multiplayer arrives).
   state = createGame({
     seed,
     players: Array.from({ length: options.players }, (_, i) => ({ id: `p${i + 1}`, name: i === 0 ? 'You' : `Explorer ${i + 1}` })),
   });
   view = createGameView(document.getElementById('game')!, state, LOCAL_PLAYER, menu.shadows());
-  hud = createHud(document.getElementById('ui')!, LOCAL_PLAYER, state.terrain.isPlaceholder, togglePowerPriority);
+  hud = createHud(document.getElementById('ui')!, LOCAL_PLAYER, state.terrain.isPlaceholder, togglePowerPriority, callEarth);
   minimap = createMinimap(document.getElementById('ui')!, LOCAL_PLAYER, () => view.getMapYaw());
+  if (import.meta.env.DEV) setUpDevHelpers();
   playing = true;
-  if (import.meta.env.DEV) {
-    (window as unknown as { __disastronauts: unknown }).__disastronauts = { state };
-  }
 }, audio);
+
+// Inputs for the computer explorers (every player except you).
+function explorerInputs() {
+  return state.players.filter((p) => p.id !== LOCAL_PLAYER).map((p) => explorerInput(state, p));
+}
 // Switching power priority is sent to the sim as part of the next input
 // (the same way a Roblox client would ask the server).
 let pendingPriority: PowerPriority | undefined;
@@ -53,9 +59,40 @@ function togglePowerPriority() {
   pendingPriority = current === 'greenhouse' ? 'shield_generator' : 'greenhouse';
 }
 
+// Calling Earth for a supply drop is also a one-off command.
+let pendingSupplyDrop = false;
+function callEarth() {
+  if (!playing) return;
+  audio.click();
+  pendingSupplyDrop = true;
+}
+
 const keyboard = createKeyboardInput();
 keyboard.onKeyPress('KeyC', () => { if (playing) view.toggleCameraMode(); });
 keyboard.onKeyPress('KeyP', togglePowerPriority);
+keyboard.onKeyPress('Space', callEarth);
+
+// Dev builds only (not in the deployed game). Runs when you press Start.
+// - Inspect the live state from the browser console with `__disastronauts.state`.
+// - ?disaster=dustStorm (or solarFlare, coldNight) makes that disaster the next
+//   one, starting 10 seconds into the game.
+// - ?skip=30 fast-forwards the game 30 seconds.
+function setUpDevHelpers() {
+  (window as unknown as { __disastronauts: unknown }).__disastronauts = { state };
+  const kind = params.get('disaster');
+  if (kind && kind in BALANCE.disasters.weights) {
+    const flare = kind === 'solarFlare';
+    state.nextDisaster = {
+      kind: kind as DisasterKind,
+      flareClass: flare ? 'X' : null,
+      strength: flare ? BALANCE.disasters.solarFlare.classes.X.strength : 1,
+      startsAt: 10,
+      warned: false,
+    };
+  }
+  const skip = Number(params.get('skip'));
+  for (let t = 0; t < skip; t += BALANCE.sim.fixedDt) step(state, explorerInputs(), BALANCE.sim.fixedDt);
+}
 
 // Game loop: the sim advances in fixed 1/60 s steps (same result on every
 // computer); rendering happens once per screen frame.
@@ -78,10 +115,10 @@ function frame(now: number) {
     const yaw = view.getMapYaw();
     const moveX = move.x * Math.cos(yaw) + move.z * Math.sin(yaw);
     const moveZ = -move.x * Math.sin(yaw) + move.z * Math.cos(yaw);
-    const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, powerPriority: pendingPriority };
-    pendingPriority = undefined; // a one-off command: send it once
-    const inputs = [input, ...state.players.slice(1).map(player => explorerInput(state, player))];
-    events.push(...step(state, inputs, BALANCE.sim.fixedDt));
+    const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, powerPriority: pendingPriority, callSupplyDrop: pendingSupplyDrop };
+    pendingPriority = undefined; // one-off commands: send them once
+    pendingSupplyDrop = false;
+    events.push(...step(state, [input, ...explorerInputs()], BALANCE.sim.fixedDt));
     accumulator -= BALANCE.sim.fixedDt;
     steps++;
   }
