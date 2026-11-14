@@ -5,6 +5,9 @@
 export const THEME = {
   sky: 0xe9b38a, // dusty Mars sky
   fog: 0xe0a77d,
+  skyNight: 0x2a2440, // Mars night: dark purple-blue
+  fogNight: 0x2f2845,
+  sunLightLow: 0xffb27a, // warmer sun near sunrise/sunset
   sunLight: 0xfff1dc,
   skyLight: 0xffd9b8, // hemisphere light from above
   groundLight: 0x8a4a2a, // hemisphere light bounced from the ground
@@ -34,6 +37,7 @@ export const THEME = {
 
   // Effects and helper rings.
   magnetRing: 0xffffff,
+  noPowerMarker: 0xff5a4f, // floats over buildings that are switched off
 } as const;
 
 export type ThemeColorKey = Exclude<keyof typeof THEME, 'team'>;

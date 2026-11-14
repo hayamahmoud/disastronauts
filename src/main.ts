@@ -1,9 +1,10 @@
 // Entry point: connects the simulation (core) to the 3D view, the HUD and
 // the keyboard, and runs the game loop.
 
-import { BALANCE } from './config/balance';
+import { BALANCE, type PowerPriority } from './config/balance';
 import type { GameEvent } from './core/events';
 import { createGame, step } from './core/simulation';
+import { findBase, findPlayer } from './core/state';
 import { createKeyboardInput } from './input/keyboard';
 import { createGameView } from './render/gameView';
 import { createHud } from './ui/hud';
@@ -18,9 +19,21 @@ console.info(`Disastronauts seed: ${seed} (add ?seed=${seed} to the URL to repla
 const state = createGame({ seed, players: [{ id: LOCAL_PLAYER, name: 'You' }] });
 
 const view = createGameView(document.getElementById('game')!, state, LOCAL_PLAYER);
-const hud = createHud(document.getElementById('ui')!, LOCAL_PLAYER, state.terrain.isPlaceholder);
+// Switching power priority is sent to the sim as part of the next input
+// (the same way a Roblox client would ask the server).
+let pendingPriority: PowerPriority | undefined;
+function togglePowerPriority() {
+  const me = findPlayer(state, LOCAL_PLAYER);
+  const base = me && findBase(state, me.baseId);
+  if (!base) return;
+  const current = pendingPriority ?? base.powerPriority;
+  pendingPriority = current === 'greenhouse' ? 'shield_generator' : 'greenhouse';
+}
+
+const hud = createHud(document.getElementById('ui')!, LOCAL_PLAYER, state.terrain.isPlaceholder, togglePowerPriority);
 const keyboard = createKeyboardInput();
 keyboard.onKeyPress('KeyC', () => view.toggleCameraMode());
+keyboard.onKeyPress('KeyP', togglePowerPriority);
 
 // Dev builds only: inspect the live state from the browser console with
 // `__disastronauts.state`. Not included in the deployed game.
@@ -42,7 +55,9 @@ function frame(now: number) {
   let steps = 0;
   while (accumulator >= BALANCE.sim.fixedDt && steps < BALANCE.sim.maxStepsPerFrame) {
     const move = keyboard.getMove();
-    events.push(...step(state, [{ playerId: LOCAL_PLAYER, moveX: move.x, moveZ: move.z }], BALANCE.sim.fixedDt));
+    const input = { playerId: LOCAL_PLAYER, moveX: move.x, moveZ: move.z, powerPriority: pendingPriority };
+    pendingPriority = undefined; // a one-off command: send it once
+    events.push(...step(state, [input], BALANCE.sim.fixedDt));
     accumulator -= BALANCE.sim.fixedDt;
     steps++;
   }

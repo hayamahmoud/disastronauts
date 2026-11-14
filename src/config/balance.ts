@@ -80,6 +80,76 @@ export const BALANCE = {
     slotsPerRing: 6,
   },
 
+  // Day and night. A real Mars sol is 24 h 39 m 35 s (88,775 s).
+  // SOURCE: NASA NSSDCA Mars Fact Sheet, "Length of day 24.6597 hrs"
+  // https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html
+  // We squeeze one sol into `seconds` of game time so a 5-minute round has ~5 sols.
+  sol: {
+    realSeconds: 88775,
+    seconds: 60,
+    // Where in the sol the game starts (0 = midnight, 0.25 = sunrise,
+    // 0.5 = noon, 0.75 = sunset). Starting in the morning gives players a day first.
+    startTimeOfSol: 0.3,
+  },
+
+  // Rates below are "per sol" (one game day), the same way the brief says
+  // "every crew member consumes Life Support every sol".
+  // These are GAME-BALANCE numbers (not NASA measurements), except where a SOURCE is given.
+  resources: {
+    // Mars gets about 43% of the sunlight Earth gets (586.2 vs 1361 W/m²).
+    // SOURCE: NASA NSSDCA Mars Fact Sheet, "Solar irradiance (W/m2)" Mars 586.2, Earth 1361.0
+    // https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html
+    marsSunlight: 0.43,
+
+    // Starting stock for a brand-new base.
+    start: { power: 30, lifeSupport: 40, shielding: 20 },
+
+    // How much Power and Life Support a base can store (bars are full at this).
+    storage: {
+      power: { base: 80, perBuilding: 25 },
+      lifeSupport: { base: 100, perBuilding: 20 },
+    },
+
+    // Solar power at NOON with Earth-strength sun, per sol. The game multiplies it
+    // by `marsSunlight` and by the day/night curve, so the real output is much lower.
+    landerSolarPerSol: 300, // the lander has a small built-in solar array
+    solarPanelPerSol: 720,
+
+    // A building that switched off only turns back on once the battery has
+    // this much spare. Stops buildings flickering on/off when Power is near 0.
+    restartReserve: 5,
+
+    // Power each building uses per sol, if it's switched on.
+    powerUsePerSol: {
+      lander: 36,
+      habitat: 24,
+      solar_panel: 0,
+      greenhouse: 48,
+      shield_generator: 48,
+    },
+
+    lifeSupportPerCrewPerSol: 8, // every crew member breathes, drinks and eats
+    greenhouseLifeSupportPerSol: 30, // when powered, scaled by how many crew are healthy
+
+    // Shielding a base needs to be fully covered. A bigger base needs more.
+    shieldNeededPerCrew: 10,
+    shieldNeededPerBuilding: 4,
+    shieldGeneratorAmount: 30, // a powered shield generator counts as this much shielding
+  },
+
+  // Crew health: one 0–100 meter for the whole crew of a base.
+  crew: {
+    maxHealth: 100,
+    // Background space radiation hurting crew that aren't covered by shielding.
+    // Per sol at 0% coverage; scales down as coverage goes up.
+    radiationDamagePerSol: 60, // TODO-REAL-DATA: replace with RadLab baseline dose rate in M5
+    noLifeSupportDamagePerSol: 150, // out of air, water and food
+    noPowerDamagePerSol: 90, // lander/habitats unpowered: no heat, no air recycling
+    healPerSol: 30, // recovery when nothing is hurting the crew
+    sickBelow: 40, // below this health, some crew get sick (they don't work or score)
+    healthAfterLoss: 50, // when health hits 0, one crew member is lost and health resets to this
+  },
+
   // Camera is visual only, but it's a tunable number so it lives here too.
   camera: {
     height: 55,
@@ -92,3 +162,5 @@ export const BALANCE = {
 export type PickupKind = keyof typeof BALANCE.pickups.kinds;
 export type BuildingKind = (typeof BALANCE.growth.buildOrder)[number];
 export type ResourceKind = 'power' | 'lifeSupport' | 'shielding';
+// When there isn't enough Power for everything, which building gets it first.
+export type PowerPriority = 'greenhouse' | 'shield_generator';

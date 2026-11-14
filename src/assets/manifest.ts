@@ -159,3 +159,45 @@ export const BUILDING_ASSET: Record<BuildingKind, AssetId> = {
   greenhouse: 'greenhouse',
   shield_generator: 'shield_generator',
 };
+
+// --- UI icons (HUD) ---
+// Each icon is an emoji for now. To use a designed icon, put an SVG/PNG in
+// public/ui/ and set `file` (e.g. file: 'ui/icon_power.svg'). If the file is
+// missing, the emoji is shown instead.
+export type UiIconId =
+  | 'icon_power'
+  | 'icon_life_support'
+  | 'icon_shielding'
+  | 'icon_crew'
+  | 'icon_health'
+  | 'icon_cargo'
+  | 'icon_buildings'
+  | 'icon_day'
+  | 'icon_night'
+  | 'icon_greenhouse'
+  | 'icon_shield_generator'
+  | 'icon_ice'
+  | 'icon_solar'
+  | 'icon_regolith';
+
+export interface UiIconEntry {
+  file?: string;
+  emoji: string;
+}
+
+export const UI_ICONS: Record<UiIconId, UiIconEntry> = {
+  icon_power: { emoji: '⚡' },
+  icon_life_support: { emoji: '🫁' },
+  icon_shielding: { emoji: '🛡️' },
+  icon_crew: { emoji: '👩‍🚀' },
+  icon_health: { emoji: '❤️' },
+  icon_cargo: { emoji: '📦' },
+  icon_buildings: { emoji: '🏠' },
+  icon_day: { emoji: '☀️' },
+  icon_night: { emoji: '🌙' },
+  icon_greenhouse: { emoji: '🌱' },
+  icon_shield_generator: { emoji: '🛡️' },
+  icon_ice: { emoji: '🧊' },
+  icon_solar: { emoji: '☀️' },
+  icon_regolith: { emoji: '🪨' },
+};

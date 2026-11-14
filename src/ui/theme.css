@@ -15,6 +15,12 @@
   --color-team-3: #5ed18a;
   --color-team-4: #c77dff;
   --color-shadow: rgba(60, 25, 10, 0.25);
+  --color-bar-track: rgba(31, 26, 23, 0.15);
+  --color-trend-up: #2e9e50;
+  --color-trend-down: #e0433a;
+
+  --bar-width: 130px;
+  --bar-height: 16px;
 
   --font-main: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
   --font-size-s: 14px;
@@ -124,7 +130,141 @@ body {
   opacity: 0;
 }
 
+/* Inline icon: emoji or designed image from the asset manifest. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon img {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+/* Resource bar: [icon] [====    ] 45/130 ▼ */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  line-height: 1.7;
+}
+
+.bar-icon {
+  width: 1.4em;
+  text-align: center;
+}
+
+.bar-track {
+  width: var(--bar-width);
+  height: var(--bar-height);
+  border-radius: var(--radius-s);
+  background: var(--color-bar-track);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: var(--radius-s);
+  background: var(--color-good);
+  transition: width 0.25s, background-color 0.25s;
+}
+
+.bar-row[data-level='warn'] .bar-fill {
+  background: var(--color-warn);
+}
+
+.bar-row[data-level='bad'] .bar-fill {
+  background: var(--color-bad);
+}
+
+.bar-value {
+  min-width: 4.5em;
+  font-size: var(--font-size-s);
+}
+
+.bar-trend {
+  width: 1em;
+  font-size: var(--font-size-s);
+}
+
+.bar-trend[data-dir='up'] {
+  color: var(--color-trend-up);
+}
+
+.bar-trend[data-dir='down'] {
+  color: var(--color-trend-down);
+}
+
+.button {
+  position: absolute;
+  pointer-events: auto; /* the UI layer ignores clicks, buttons don't */
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-s) var(--space-m);
+  border: 2px solid var(--color-panel-border);
+  border-radius: var(--radius-m);
+  background: var(--color-panel);
+  box-shadow: 0 4px 0 var(--color-shadow);
+  font-family: var(--font-main);
+  font-size: var(--font-size-m);
+  font-weight: bold;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.button:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--color-shadow);
+}
+
+.button-label {
+  font-size: var(--font-size-s);
+  margin-right: var(--space-xs);
+}
+
+/* ---------- HUD layout ---------- */
+
+.hud-column {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+}
+
+.hud-column .panel {
+  position: static;
+}
+
+.hud-clock {
+  right: 12px;
+  top: 12px;
+  font-size: var(--font-size-l);
+}
+
+.hud-priority {
+  right: 12px;
+  bottom: 48px;
+}
+
+.hud-tip {
+  max-width: 200px;
+  font-size: var(--font-size-s);
+  color: var(--color-bad);
+}
+
+.hud-tip:empty {
+  display: none;
+}
+
 @media (max-width: 600px) {
+  :root {
+    --bar-width: 80px;
+  }
+
   .message {
     font-size: var(--font-size-m);
     white-space: normal;

@@ -150,10 +150,12 @@ describe('deposit and growth', () => {
     player.cargo.ice = 2;
     player.cargoCount = 2;
     player.pos = { ...base.pos };
+    const before = base.stored.lifeSupport;
 
     const events = run(s, DT);
     expect(player.cargoCount).toBe(0);
-    expect(base.stored.lifeSupport).toBe(2 * BALANCE.pickups.kinds.ice.amount);
+    // +10 from the ice, minus a tiny bit the crew breathed during this step.
+    expect(base.stored.lifeSupport).toBeCloseTo(before + 2 * BALANCE.pickups.kinds.ice.amount, 1);
     expect(events.some((e) => e.type === 'CargoDeposited')).toBe(true);
   });
 
@@ -182,7 +184,7 @@ describe('deposit and growth', () => {
     const player = s.players[0];
     const radiusBefore = magnetRadius(s, player);
     const capacityBefore = cargoCapacity(s, player);
-    s.bases[0].buildings.push({ id: 999, kind: 'habitat', offset: { x: 0, z: 0 } });
+    s.bases[0].buildings.push({ id: 999, kind: 'habitat', offset: { x: 0, z: 0 }, powered: true });
     expect(magnetRadius(s, player)).toBeGreaterThan(radiusBefore);
     expect(cargoCapacity(s, player)).toBeGreaterThan(capacityBefore);
   });
