@@ -1,0 +1,133 @@
+/* All UI colors, fonts, sizes, corner radii and spacing live here.
+   Restyle the whole UI by changing these variables. Colors mirror src/ui/theme.ts. */
+:root {
+  --color-sky: #e9b38a;
+  --color-text: #1f1a17;
+  --color-text-light: #ffffff;
+  --color-panel: rgba(255, 250, 244, 0.92);
+  --color-panel-border: rgba(31, 26, 23, 0.12);
+  --color-accent: #ff8a3d;
+  --color-good: #4cc76d;
+  --color-warn: #ffc93c;
+  --color-bad: #ff5a4f;
+  --color-team-1: #3fa7ff;
+  --color-team-2: #ffc93c;
+  --color-team-3: #5ed18a;
+  --color-team-4: #c77dff;
+  --color-shadow: rgba(60, 25, 10, 0.25);
+
+  --font-main: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+  --font-size-s: 14px;
+  --font-size-m: 18px;
+  --font-size-l: 28px;
+  --font-size-xl: 44px;
+
+  --radius-s: 8px;
+  --radius-m: 14px;
+  --radius-l: 22px;
+
+  --space-xs: 4px;
+  --space-s: 8px;
+  --space-m: 14px;
+  --space-l: 22px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-sky);
+  font-family: var(--font-main);
+  color: var(--color-text);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#game,
+#game canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* UI layer sits on top of the canvas; only actual widgets catch clicks. */
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ---------- Reusable components (see src/ui/components.ts) ---------- */
+
+.panel {
+  position: absolute;
+  background: var(--color-panel);
+  border: 2px solid var(--color-panel-border);
+  border-radius: var(--radius-m);
+  padding: var(--space-s) var(--space-m);
+  box-shadow: 0 4px 0 var(--color-shadow);
+  font-size: var(--font-size-m);
+  font-weight: bold;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  line-height: 1.6;
+}
+
+.stat-icon {
+  font-size: var(--font-size-m);
+  width: 1.4em;
+  text-align: center;
+}
+
+.stat.is-full {
+  color: var(--color-bad);
+}
+
+.badge {
+  position: absolute;
+  padding: var(--space-xs) var(--space-s);
+  border-radius: var(--radius-s);
+  background: rgba(31, 26, 23, 0.6);
+  color: var(--color-text-light);
+  font-size: var(--font-size-s);
+}
+
+.message {
+  position: absolute;
+  left: 50%;
+  top: 14%;
+  transform: translateX(-50%);
+  padding: var(--space-s) var(--space-l);
+  border-radius: var(--radius-l);
+  background: var(--color-panel);
+  box-shadow: 0 4px 0 var(--color-shadow);
+  font-size: var(--font-size-l);
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+  transition: opacity 0.4s;
+}
+
+.message.is-hidden {
+  opacity: 0;
+}
+
+@media (max-width: 600px) {
+  .message {
+    font-size: var(--font-size-m);
+    white-space: normal;
+    width: 90%;
+  }
+}
