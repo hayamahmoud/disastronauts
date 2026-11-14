@@ -1,11 +1,11 @@
 // Milestone 3: disasters, wrecks + salvage + absorb, missions, supply drops.
 import { describe, expect, it } from 'vitest';
 import { BALANCE, type BuildingKind } from '../src/config/balance';
-import { crewDamagePerSol } from '../src/core/crew';
+import { crewDamagePerSol, flareCoverage } from '../src/core/crew';
 import { timeOfSol } from '../src/core/dayNight';
 import { disasterDuration } from '../src/core/disasters';
 import type { GameEvent } from '../src/core/events';
-import { itemTarget, pickMission, powerTarget } from '../src/core/missions';
+import { flareSoilTarget, itemTarget, pickMission, powerTarget } from '../src/core/missions';
 import { powerUse, shieldNeeded, solarPerSol } from '../src/core/resources';
 import { createGame, step } from '../src/core/simulation';
 import type { BaseState, GameState, PlayerInput } from '../src/core/state';
@@ -134,32 +134,74 @@ describe('disasters', () => {
     expect(powerUse(s, 'greenhouse')).toBe(BALANCE.resources.powerUsePerSol.greenhouse);
   });
 
-  it('a solar flare only hurts crew that shielding does not cover', () => {
+  it('a solar flare hurts crew the shielding does not cover, and needs extra shielding', () => {
     const s = newGame();
-    const [shielded, bare] = s.bases;
+    const [ready, normal] = s.bases;
     // Both astronauts stay home.
-    s.players[0].pos = { ...shielded.pos };
-    s.players[1].pos = { ...bare.pos };
-    shielded.stored.shielding = shieldNeeded(shielded);
-    bare.stored.shielding = 0;
+    s.players[0].pos = { ...ready.pos };
+    s.players[1].pos = { ...normal.pos };
+    // An M-class flare needs 2x the normal shielding.
+    const mult = D.solarFlare.classes.M.shieldNeed;
+    ready.stored.shielding = shieldNeeded(ready) * mult;
+    normal.stored.shielding = shieldNeeded(normal); // fine on a normal day...
     startDisaster(s, 'solarFlare');
-    expect(crewDamagePerSol(s, shielded).flare).toBe(0);
-    expect(crewDamagePerSol(s, bare).flare).toBeCloseTo(D.solarFlare.damagePerSol);
+    expect(flareCoverage(ready, 'M')).toBe(1);
+    expect(crewDamagePerSol(s, ready).flare).toBe(0);
+    // ...but only half covered during the flare.
+    expect(flareCoverage(normal, 'M')).toBeCloseTo(1 / mult);
+    expect(crewDamagePerSol(s, normal).flare).toBeCloseTo(D.solarFlare.damagePerSol * (1 - 1 / mult));
 
     run(s, 5);
-    expect(shielded.health).toBe(BALANCE.crew.maxHealth);
-    expect(bare.health).toBeLessThan(BALANCE.crew.maxHealth);
+    expect(ready.health).toBe(BALANCE.crew.maxHealth);
+    expect(normal.health).toBeLessThan(BALANCE.crew.maxHealth);
   });
 
   it('a flare hurts more while your astronaut is outside, and stronger flares hurt more', () => {
     const s = newGame();
     const base = s.bases[0];
-    base.stored.shielding = shieldNeeded(base);
+    base.stored.shielding = shieldNeeded(base) * D.solarFlare.classes.M.shieldNeed; // fully covered
     s.players[0].pos = { x: base.pos.x + 100, z: base.pos.z };
     startDisaster(s, 'solarFlare', 1);
     expect(crewDamagePerSol(s, base).flare).toBeCloseTo(D.solarFlare.outsideDamagePerSol);
     startDisaster(s, 'solarFlare', 1.6);
     expect(crewDamagePerSol(s, base).flare).toBeCloseTo(D.solarFlare.outsideDamagePerSol * 1.6);
+  });
+
+  it('the flare mission asks for exactly the soil that covers the shortfall', () => {
+    const s = newGame();
+    const base = s.bases[0];
+    base.stored.shielding = shieldNeeded(base); // covered for a normal day
+    const missing = shieldNeeded(base) * (D.solarFlare.classes.X.shieldNeed - 1);
+    const soil = Math.ceil(missing / BALANCE.pickups.kinds.regolith.amount);
+    expect(flareSoilTarget(base, 'X', 1000)).toBe(Math.min(soil, BALANCE.missions.maxItems));
+    // Already covered: still asks for the minimum, so there's always something to do.
+    base.stored.shielding = 1000;
+    expect(flareSoilTarget(base, 'X', 1000)).toBe(BALANCE.missions.minItems);
+  });
+
+  it('a dust storm slows astronauts down', () => {
+    const calm = newGame();
+    const windy = newGame();
+    startDisaster(windy, 'dustStorm');
+    for (const g of [calm, windy]) for (let i = 0; i < 120; i++) step(g, [{ playerId: 'p1', moveX: 1, moveZ: 0 }], DT);
+    const speed = (g: GameState) => Math.hypot(g.players[0].vel.x, g.players[0].vel.z);
+    expect(speed(windy)).toBeCloseTo(speed(calm) * D.dustStorm.walkSpeedFactor, 1);
+  });
+
+  it('dust storms only start in the morning', () => {
+    const s = newGame(3);
+    let storms = 0;
+    for (let i = 0; i < 40 * 60 * 30; i++) {
+      const events: GameEvent[] = step(s, [], DT);
+      for (const e of events) {
+        if (e.type !== 'DisasterStarted' || e.kind !== 'dustStorm') continue;
+        storms++;
+        const tos = timeOfSol(s.time);
+        expect(tos).toBeGreaterThanOrEqual(D.dustStorm.startWindow.from - 0.01);
+        expect(tos).toBeLessThanOrEqual(D.dustStorm.startWindow.to + 0.01);
+      }
+    }
+    expect(storms).toBeGreaterThan(0);
   });
 
   it('stays deterministic with disasters on', () => {

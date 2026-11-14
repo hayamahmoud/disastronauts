@@ -5,7 +5,7 @@
 import { BALANCE } from '../config/balance';
 import { updateCrew } from './crew';
 import { updateDayNight } from './dayNight';
-import { setupDisasters, updateDisasters } from './disasters';
+import { setupDisasters, updateDisasters, walkSpeedFactor } from './disasters';
 import type { GameEvent } from './events';
 import { updateMissions } from './missions';
 import { moveRover } from './movement';
@@ -102,7 +102,7 @@ export function step(state: GameState, inputs: PlayerInput[], dt: number): GameE
 
   for (const player of state.players) {
     const input = findInput(inputs, player.id);
-    moveRover(player, input, state.terrain, dt);
+    moveRover(player, input, state.terrain, dt, walkSpeedFactor(state));
     applyCommands(state, player, input, events);
   }
   updateDisasters(state, events);

@@ -1,8 +1,9 @@
 // Disasters: dust storms, solar flares and cold nights. They hit every base at
 // the same time, always after a warning, so players can get ready.
 //
-// - Dust storm: solar panels make much less Power for a while.
-// - Solar flare: crew NOT covered by Shielding get hurt (more if your astronaut is outside).
+// - Dust storm (daytime only): solar panels make much less Power, and the wind slows you down.
+// - Solar flare: your base needs extra Shielding while it lasts; crew NOT covered
+//   get hurt (more if your astronaut is outside).
 // - Cold night: from sunset to sunrise, every shelter needs extra Power for heaters.
 //
 // The next disaster is always decided in advance (state.nextDisaster), so
@@ -33,6 +34,15 @@ function planDisaster(state: GameState, earliest: number): PlannedDisaster {
   let flareClass: FlareClass | null = null;
   let strength = 1;
 
+  if (kind === 'dustStorm') {
+    // A storm only starts in the morning window; otherwise it waits for the next one.
+    const w = D.dustStorm.startWindow;
+    const tos = timeOfSol(earliest);
+    if (tos < w.from || tos > w.to) {
+      const untilMorning = (((w.from - tos) % 1) + 1) % 1;
+      startsAt = earliest + untilMorning * BALANCE.sol.seconds;
+    }
+  }
   if (kind === 'coldNight') {
     // A cold night waits for the next sunset.
     const untilSunset = (((SUNSET - timeOfSol(earliest)) % 1) + 1) % 1;
@@ -100,6 +110,16 @@ export function disasterActive(state: GameState, kind: DisasterKind): boolean {
 // Solar panels make this share of their normal Power (dust blocks the sun).
 export function solarFactor(state: GameState): number {
   return disasterActive(state, 'dustStorm') ? D.dustStorm.solarFactor : 1;
+}
+
+// Astronauts walk at this share of their normal speed (wind in a dust storm).
+export function walkSpeedFactor(state: GameState): number {
+  return disasterActive(state, 'dustStorm') ? D.dustStorm.walkSpeedFactor : 1;
+}
+
+// During a flare of this class, a base needs this many times its normal Shielding.
+export function flareShieldNeed(flareClass: FlareClass | null): number {
+  return flareClass ? D.solarFlare.classes[flareClass].shieldNeed : 1;
 }
 
 // Extra Power per sol each shelter (lander/habitat) needs for heaters.

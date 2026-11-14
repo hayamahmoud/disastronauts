@@ -11,9 +11,9 @@
 import { PICKUP_ICON, type UiIconId } from '../assets/manifest';
 import type { DisasterKind, FlareClass, PowerPriority } from '../config/balance';
 import { BALANCE } from '../config/balance';
-import { crewDamagePerSol, isOwnerOutside } from '../core/crew';
+import { crewDamagePerSol, flareCoverage, isOwnerOutside } from '../core/crew';
 import { isNight, solNumber, timeOfSol } from '../core/dayNight';
-import { secondsUntilNextDisaster } from '../core/disasters';
+import { flareShieldNeed, secondsUntilNextDisaster } from '../core/disasters';
 import type { GameEvent } from '../core/events';
 import { cargoCapacity } from '../core/growth';
 import { MISSION_PICKUP } from '../core/missions';
@@ -29,19 +29,19 @@ const DISASTER: Record<DisasterKind, { icon: UiIconId; name: string; does: strin
   dustStorm: {
     icon: 'icon_dust_storm',
     name: 'Dust storm',
-    does: 'Dust blocks the sun: solar panels make much less Power.',
-    prepare: 'Fill up on Power!',
+    does: 'Dust blocks the sun: solar panels barely work. The wind slows you down!',
+    prepare: 'Fill up on Power and head home!',
   },
   solarFlare: {
     icon: 'icon_solar_flare',
     name: 'Solar flare',
-    does: 'Radiation from the Sun! Stay home under your shield.',
-    prepare: 'Get home and boost your Shield!',
+    does: 'Radiation from the Sun! Your shield needs extra soil. Stay home!',
+    prepare: 'Bring soil home for your Shield!',
   },
   coldNight: {
     icon: 'icon_cold_night',
     name: 'Cold night',
-    does: 'Freezing! Heaters use extra Power until sunrise.',
+    does: 'Freezing! Heaters burn lots of Power until sunrise.',
     prepare: 'Fill up on Power before sunset!',
   },
 };
@@ -187,7 +187,7 @@ export function createHud(
       updateCallButton(me, base, state);
 
       if (base) {
-        updateChips(base);
+        updateChips(state, base);
         updateCrew(base);
         const t = tipFor(state, me, base);
         if ((t?.text ?? '') !== lastTip) {
@@ -260,7 +260,7 @@ export function createHud(
     },
   };
 
-  function updateChips(base: BaseState) {
+  function updateChips(state: GameState, base: BaseState) {
     const pCap = storageCapacity(base, 'power');
     power.set(base.stored.power / pCap, String(Math.floor(base.stored.power)), base.netPerSol.power);
     const lCap = storageCapacity(base, 'lifeSupport');
@@ -268,12 +268,32 @@ export function createHud(
 
     // Shielding shows coverage: how much of what the base needs is there.
     // Any gap lets radiation in, so it turns yellow as soon as it's below 100%.
-    const coverage = shieldCoverage(base);
+    // When a flare is coming or happening, it shows coverage against the
+    // flare's (bigger) need, so you can see your shield isn't enough yet.
+    const flareClass = flareShowing(state);
+    const need = shieldNeeded(base) * flareShieldNeed(flareClass);
+    const coverage = flareClass ? flareCoverage(base, flareClass) : shieldCoverage(base);
     shield.set(Math.min(1, coverage), `${Math.round(coverage * 100)}%`, 0, coverage >= 1 ? 'good' : coverage >= 0.6 ? 'warn' : 'bad');
-    shield.setTitle(`${EXPLAIN.shield} (You have ${Math.floor(shieldTotal(base))} of ${shieldNeeded(base)} needed.)`);
+    const flareNote = flareClass ? ' A solar flare needs extra!' : '';
+    shield.setTitle(`${EXPLAIN.shield} (You have ${Math.floor(shieldTotal(base))} of ${Math.ceil(need)} needed.${flareNote})`);
+
+    // Pulse the chips a disaster is hitting right now, with a tiny badge.
+    const kind = state.disaster?.kind;
+    const solarCut = Math.round((1 - BALANCE.disasters.dustStorm.solarFactor) * 100);
+    power.setHit(kind === 'dustStorm' ? `-${solarCut}% ☀️` : kind === 'coldNight' ? 'Heaters!' : null);
+    shield.setHit(flareClass ? `need ×${flareShieldNeed(flareClass)}` : null);
+    health.setHit(kind === 'solarFlare' && crewDamagePerSol(state, base).flare > 0 ? 'Radiation!' : null);
 
     const h = base.health / BALANCE.crew.maxHealth;
     health.set(h, String(Math.ceil(base.health)), 0, levelFor(h));
+  }
+
+  // The flare class to measure the shield against: the flare happening now,
+  // or the one the warning banner is counting down to.
+  function flareShowing(state: GameState): FlareClass | null {
+    if (state.disaster) return state.disaster.flareClass;
+    const next = state.nextDisaster;
+    return next && next.warned ? next.flareClass : null;
   }
 
   // The mission card: what to do, how far along, time left and total stars.

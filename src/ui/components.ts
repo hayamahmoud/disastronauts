@@ -84,6 +84,12 @@ export function createChip(parent: HTMLElement, key: string, icon: UiIconId, lab
     setTitle(text: string) {
       chip.title = text;
     },
+    // A disaster is hitting this resource right now: pulse red and show a tiny tag.
+    setHit(tag: string | null) {
+      chip.classList.toggle('is-hit', tag !== null);
+      if (tag === null) delete chip.dataset.hit;
+      else chip.dataset.hit = tag;
+    },
   };
 }
 

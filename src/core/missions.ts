@@ -3,10 +3,10 @@
 // Bring 5 soil home for your shield"). Otherwise they help with whatever your
 // base needs most. Finish fast for 3 stars, in time for 2, half-done for 1.
 
-import { BALANCE, type PickupKind } from '../config/balance';
-import { secondsUntilNextDisaster } from './disasters';
+import { BALANCE, type FlareClass, type PickupKind } from '../config/balance';
+import { flareShieldNeed, secondsUntilNextDisaster } from './disasters';
 import type { GameEvent } from './events';
-import { shieldCoverage, storageCapacity } from './resources';
+import { shieldCoverage, shieldNeeded, shieldTotal, storageCapacity } from './resources';
 import type { BaseState, GameState, MissionKind, MissionState, PlayerState } from './state';
 import { findBase } from './state';
 
@@ -87,8 +87,8 @@ export function pickMission(state: GameState, base: BaseState): MissionState {
   const next = state.nextDisaster;
   if (next && lead >= M.minDisasterLead && lead <= M.maxDisasterLead) {
     if (next.kind === 'solarFlare') {
-      // Flare: pile up soil (regolith) for the shield.
-      return newMission('bringRegolith', itemTarget(base, lead), lead, next.kind);
+      // Flare: pile up enough soil (regolith) to cover the base during THIS flare.
+      return newMission('bringRegolith', flareSoilTarget(base, next.flareClass, lead), lead, next.kind);
     }
     // Dust storm or cold night: charge the battery before Power gets scarce.
     const target = powerTarget(base);
@@ -117,6 +117,15 @@ export function itemTarget(base: BaseState, seconds: number): number {
   const bySize = M.minItems + Math.floor(base.buildings.length / 3);
   const byTime = Math.max(M.minItems, Math.floor(seconds / M.secondsPerItem));
   return Math.max(M.minItems, Math.min(bySize, byTime, M.maxItems));
+}
+
+// "Bring N soil": exactly enough to fully cover the base during the coming flare
+// (within the usual min/max, and what the time allows).
+export function flareSoilTarget(base: BaseState, flareClass: FlareClass | null, seconds: number): number {
+  const missing = shieldNeeded(base) * flareShieldNeed(flareClass) - shieldTotal(base);
+  const soil = Math.ceil(missing / BALANCE.pickups.kinds.regolith.amount);
+  const byTime = Math.max(M.minItems, Math.floor(seconds / M.secondsPerItem));
+  return Math.max(M.minItems, Math.min(soil, byTime, M.maxItems));
 }
 
 // "Store N Power": a bit more than you have, rounded up to 5, below the battery limit.

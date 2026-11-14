@@ -6,7 +6,7 @@ import { BALANCE } from '../config/balance';
 import type { GameEvent } from '../core/events';
 import { sunlight, timeOfSol } from '../core/dayNight';
 import { depositRadius, magnetRadius } from '../core/growth';
-import { shieldCoverage } from '../core/resources';
+import { flareCoverage } from '../core/crew';
 import type { GameState, PlayerState } from '../core/state';
 import { findPlayer } from '../core/state';
 import { sampleHeight } from '../core/terrain';
@@ -245,7 +245,7 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
       view.dome.visible = flare > 0.01;
       if (view.dome.visible) {
         view.dome.scale.setScalar(depositRadius(base) * 0.85);
-        (view.dome.material as THREE.ShaderMaterial).uniforms.opacity.value = flare * (0.3 + 0.7 * Math.min(1, shieldCoverage(base)));
+        (view.dome.material as THREE.ShaderMaterial).uniforms.opacity.value = flare * (0.3 + 0.7 * flareCoverage(base, s.disaster?.flareClass ?? null));
       }
 
       for (const b of base.buildings) {

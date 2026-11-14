@@ -164,28 +164,34 @@ export const BALANCE = {
     // How often each kind is picked (higher = more often).
     weights: { dustStorm: 1, solarFlare: 1, coldNight: 1 },
     dustStorm: {
-      duration: 20,
-      solarFactor: 0.2, // solar panels make only 20% of their normal Power in the dust
+      duration: 24,
+      solarFactor: 0.1, // solar panels make only 10% of their normal Power in the dust
+      walkSpeedFactor: 0.6, // the wind slows astronauts to 60% speed
+      // Storms only blow in during the day (at night there's no sun to block anyway).
+      // If one would start outside this part of the sol, it waits for the next morning.
+      startWindow: { from: 0.27, to: 0.45 }, // time of sol (0.25 = sunrise, 0.75 = sunset)
     },
     solarFlare: {
       duration: 10,
       // Health lost per sol by crew NOT covered by shielding, at strength 1.
       // Fully shielded bases take none; half-shielded bases take half.
-      damagePerSol: 240,
+      damagePerSol: 300,
       // Extra health lost per sol while your astronaut is outside the base.
       outsideDamagePerSol: 120,
       // Flare classes (C < M < X) and how strong each one hits.
+      // shieldNeed: during the flare your base needs this many times its normal
+      // Shielding to be fully covered, so you must pile up soil before it hits.
       // TODO-REAL-DATA: M5 replays real DONKI flares; the class will come from that data.
       classes: {
-        C: { weight: 5, strength: 0.6 },
-        M: { weight: 3, strength: 1 },
-        X: { weight: 1, strength: 1.6 },
+        C: { weight: 5, strength: 0.6, shieldNeed: 1.5 },
+        M: { weight: 3, strength: 1, shieldNeed: 2 },
+        X: { weight: 1, strength: 1.6, shieldNeed: 3 },
       },
     },
     coldNight: {
       // Lasts from sunset to sunrise. Each shelter (lander or habitat) needs this
       // much EXTRA Power per sol for heaters, so bigger bases pay more.
-      heatPerShelterPerSol: 30,
+      heatPerShelterPerSol: 80,
     },
   },
 

@@ -3,10 +3,11 @@
 // covered by Shielding (radiation). It slowly recovers when all is well.
 // Low health → some crew get sick (they don't work). Health 0 → a crew member is lost.
 
-import { BALANCE } from '../config/balance';
+import { BALANCE, type FlareClass } from '../config/balance';
 import type { GameEvent } from './events';
 import { depositRadius } from './growth';
-import { countBuildings, shieldCoverage } from './resources';
+import { flareShieldNeed } from './disasters';
+import { countBuildings, shieldCoverage, shieldNeeded, shieldTotal } from './resources';
 import type { BaseState, GameState } from './state';
 import { distance, findPlayer } from './state';
 
@@ -29,19 +30,28 @@ export function crewDamagePerSol(state: GameState, base: BaseState): CrewDamage 
     radiation: C.radiationDamagePerSol * unshielded,
     noLifeSupport: base.stored.lifeSupport <= 0 ? C.noLifeSupportDamagePerSol : 0,
     noPower: C.noPowerDamagePerSol * (1 - poweredShelters / shelters),
-    flare: flareDamagePerSol(state, base, unshielded),
+    flare: flareDamagePerSol(state, base),
   };
 }
 
 // A solar flare hurts crew the shielding doesn't cover, and hurts more while
 // your astronaut is out on the surface (outside the base's unload circle).
-function flareDamagePerSol(state: GameState, base: BaseState, unshielded: number): number {
+function flareDamagePerSol(state: GameState, base: BaseState): number {
   const d = state.disaster;
   if (!d || d.kind !== 'solarFlare') return 0;
   const F = BALANCE.disasters.solarFlare;
-  let damage = F.damagePerSol * unshielded;
+  let damage = F.damagePerSol * (1 - flareCoverage(base, d.flareClass));
   if (isOwnerOutside(state, base)) damage += F.outsideDamagePerSol;
   return damage * d.strength;
+}
+
+// 0 to 1: how much of the base its Shielding covers during a flare of this class.
+// A flare needs extra Shielding (e.g. 2x for M-class), so a base that's fine
+// on a normal day can be only half covered when a flare hits.
+export function flareCoverage(base: BaseState, flareClass: FlareClass | null): number {
+  const need = shieldNeeded(base) * flareShieldNeed(flareClass);
+  if (need <= 0) return 1;
+  return Math.min(1, shieldTotal(base) / need);
 }
 
 // Is the base's astronaut outside the base's unload circle?

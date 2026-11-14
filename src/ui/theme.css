@@ -161,6 +161,21 @@ body {
   background: var(--color-bad-chip);
   animation: wiggle 0.6s ease-in-out infinite;
 }
+/* Hit by a disaster: pulsing ring plus a small corner badge ("-90% ☀️"). */
+.chip.is-hit {
+  animation: hit 0.9s ease-in-out infinite;
+}
+.chip.is-hit::after {
+  content: attr(data-hit);
+  position: absolute;
+  right: -8px;
+  top: -10px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-alert);
+  font-size: 11px;
+  white-space: nowrap;
+}
 .chip-icon {
   display: grid;
   place-items: center;
@@ -527,6 +542,13 @@ body {
 }
 
 /* ---------- Animations ---------- */
+@keyframes hit {
+  50% {
+    box-shadow:
+      0 4px 0 var(--color-shadow),
+      0 0 0 3px var(--color-alert);
+  }
+}
 @keyframes pulse {
   50% {
     transform: translateX(-50%) scale(1.05);
