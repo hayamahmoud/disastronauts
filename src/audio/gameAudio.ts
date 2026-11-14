@@ -6,6 +6,16 @@ export function createGameAudio(localPlayerId: string) {
   let master: GainNode;
   let music: GainNode;
   let effects: GainNode;
+  let musicLevel: GainNode;
+  const listeners = new Set<() => void>();
+  function loadVolume(key: string) {
+    try {
+      const value = Number(localStorage.getItem(key) ?? 1);
+      return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+    } catch { return 1; }
+  }
+  let musicVolume = loadVolume('disastronauts.musicVolume');
+  let effectsVolume = loadVolume('disastronauts.effectsVolume');
   let muted = false;
   try { muted = localStorage.getItem('disastronauts.muted') === 'true'; } catch { /* Storage is optional. */ }
   let timer: number | undefined;
@@ -66,15 +76,17 @@ export function createGameAudio(localPlayerId: string) {
         context = new AudioContext();
         master = context.createGain();
         music = context.createGain();
+        musicLevel = context.createGain();
+        musicLevel.gain.value = musicVolume;
         effects = context.createGain();
         master.gain.value = muted ? 0 : 0.55;
         music.gain.value = 0.65;
-        effects.gain.value = 0.8;
+        effects.gain.value = 0.8 * effectsVolume;
         // Keep layered sounds and launch noise from clipping.
         const limiter = context.createDynamicsCompressor();
         limiter.threshold.value = -12;
         limiter.ratio.value = 8;
-        music.connect(master); effects.connect(master);
+        music.connect(musicLevel).connect(master); effects.connect(master);
         master.connect(limiter).connect(context.destination);
         timer = window.setInterval(scheduleMusic, 200);
       }
@@ -95,13 +107,15 @@ export function createGameAudio(localPlayerId: string) {
       unlock();
     }
   });
-  toggle.onclick = () => {
-    muted = !muted;
+  function setMuted(value: boolean) {
+    muted = value;
     unlock();
     if (context) master.gain.setTargetAtTime(muted ? 0 : 0.55, context.currentTime, 0.025);
     try { localStorage.setItem('disastronauts.muted', String(muted)); } catch { /* Optional. */ }
     updateToggle();
-  };
+    listeners.forEach(listener => listener());
+  }
+  toggle.onclick = () => setMuted(!muted);
 
   function click() {
     unlock();
@@ -147,6 +161,25 @@ export function createGameAudio(localPlayerId: string) {
 
   return {
     click, hover, launch,
+    getSettings: () => ({ muted, musicVolume, effectsVolume }),
+    setMuted,
+    setVolume(kind: 'music' | 'effects', value: number) {
+      if (!Number.isFinite(value)) return;
+      const volume = Math.max(0, Math.min(1, value));
+      if (kind === 'music') musicVolume = volume;
+      else effectsVolume = volume;
+      unlock();
+      if (context) {
+        const gain = kind === 'music' ? musicLevel : effects;
+        gain.gain.setTargetAtTime(volume * (kind === 'music' ? 1 : 0.8), context.currentTime, 0.025);
+      }
+      try { localStorage.setItem(`disastronauts.${kind === 'music' ? 'musicVolume' : 'effectsVolume'}`, String(volume)); } catch { /* Optional. */ }
+      listeners.forEach(listener => listener());
+    },
+    onSettingsChange(listener: () => void) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
     enterGame() { inGame = true; },
     update(events: GameEvent[], localBaseId: string) {
       if (!context || context.state !== 'running' || muted) return;
