@@ -25,6 +25,11 @@ export function createKeyboardInput(target: Window = window): KeyboardInput {
 
   target.addEventListener('keydown', (e) => {
     if (e.repeat) return;
+    // Preserve form editing and button activation without trapping movement
+    // after clicking an in-game control such as the sound toggle.
+    const focused = e.target as HTMLElement | null;
+    if (focused?.closest?.('input, select, textarea, dialog')) return;
+    if (focused?.closest?.('button') && (e.code === 'Space' || e.code === 'Enter')) return;
     down.add(e.code);
     handlers.get(e.code)?.();
     if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); // don't scroll the page

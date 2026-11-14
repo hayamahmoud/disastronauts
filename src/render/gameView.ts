@@ -115,11 +115,11 @@ function createBadge(kind: PickupKind): THREE.Sprite {
 const markerGeometry = new THREE.OctahedronGeometry(0.9);
 const markerMaterial = new THREE.MeshBasicMaterial({ color: THEME.noPowerMarker, toneMapped: false });
 
-export function createGameView(container: HTMLElement, state: GameState, localPlayerId: string): GameView {
+export function createGameView(container: HTMLElement, state: GameState, localPlayerId: string, shadows = true): GameView {
   // --- Renderer, scene, camera ---
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = shadows;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = RENDER_STYLE.exposure;
