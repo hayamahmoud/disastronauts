@@ -249,6 +249,83 @@ export const BALANCE = {
     lowFraction: 0.4, // a bar under 40% counts as "running low" when picking a mission
   },
 
+  // One round: a short lobby countdown, then a timed game. Highest Colony Score wins.
+  round: {
+    lobbySeconds: 10, // everyone has landed; the countdown runs before you can move
+    seconds: 300, // 5 minutes of play (about 5 sols)
+    endWarningSeconds: 30, // "30 seconds left!" message
+  },
+
+  // Colony Score (who wins). Only HEALTHY crew and POWERED buildings count, so
+  // reckless growth loses to a well-run base. GAME-BALANCE numbers.
+  score: {
+    perHealthyCrew: 100,
+    perPoweredBuilding: 50,
+    perStoredResource: 1, // each point of stored Power, Life Support and Shielding
+    perMissionStar: 25, // finished missions add to the score
+  },
+
+  // Computer rivals. They send the same kind of input a human does.
+  bots: {
+    thinkInterval: 0.5, // seconds between choosing a new target
+    sightRadius: 150, // they only notice pickups (and wrecks) this close
+    distanceBias: 20, // bigger = cares less about how far away a pickup is
+    targetTimeout: 12, // give up on a target after this long (e.g. stuck on a hill)
+    arriveRadius: 4, // close enough to a walk-to point
+    homeStopRadius: 6, // while sheltering, stand this close to the lander
+    wanderMinDistance: 60, // when nothing is in sight, walk somewhere this far...
+    wanderMaxDistance: 160, // ...to this far away
+    supplyDropLowLife: 0.35, // calls Earth when Life Support is under 35%...
+    supplyDropSparePower: 30, // ...and it has this much Power to spare after paying
+    // Three personalities, so different strategies win (or fail) each round.
+    //  pace: share of full speed (bots walk a little slower than you)
+    //  returnAt: heads home when the backpack is this full (0 to 1)
+    //  shelters: goes home on a disaster warning and stays in during flares
+    //  wreckChance: how likely it chases a wreck it could absorb (0 to 1)
+    //  likes: how much it wants each pickup; needWeight: how much it favours
+    //  whatever its base is running low on
+    personalities: {
+      grower: {
+        name: 'Rusty',
+        style: 'Grows fast, takes risks',
+        pace: 0.9,
+        returnAt: 1,
+        shelters: false,
+        wreckChance: 0.7,
+        powerPriority: 'greenhouse',
+        likes: { crate: 3, ice: 1, regolith: 0.5, solar: 1 },
+        needWeight: 0.5,
+        callsSupplyDrops: false,
+      },
+      shielder: {
+        name: 'Nova',
+        style: 'Plays it safe',
+        pace: 0.82,
+        returnAt: 0.6,
+        shelters: true,
+        wreckChance: 0.15,
+        powerPriority: 'shield_generator',
+        likes: { crate: 1, ice: 1, regolith: 2.5, solar: 1.2 },
+        needWeight: 1.5,
+        callsSupplyDrops: true,
+      },
+      balanced: {
+        name: 'Comet',
+        style: 'Keeps everything balanced',
+        pace: 0.86,
+        returnAt: 0.85,
+        shelters: true,
+        wreckChance: 0.4,
+        powerPriority: 'greenhouse',
+        likes: { crate: 1.5, ice: 1, regolith: 1, solar: 1 },
+        needWeight: 2,
+        callsSupplyDrops: true,
+      },
+    },
+    // Rivals join in this order (player 2 is the grower, and so on).
+    order: ['grower', 'shielder', 'balanced'],
+  },
+
   // Camera is visual only, but it's a tunable number so it lives here too.
   camera: {
     // Low camera aimed above the player, so sky and far hills are on screen.
@@ -275,3 +352,4 @@ export type ResourceKind = 'power' | 'lifeSupport' | 'shielding';
 export type PowerPriority = 'greenhouse' | 'shield_generator';
 export type DisasterKind = keyof typeof BALANCE.disasters.weights;
 export type FlareClass = keyof typeof BALANCE.disasters.solarFlare.classes;
+export type BotPersonality = keyof typeof BALANCE.bots.personalities;

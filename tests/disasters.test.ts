@@ -25,6 +25,7 @@ function newGame(seed = 7, disasters = true): GameState {
       { id: 'p2', name: 'Two' },
     ],
     disasters,
+    rounds: false,
   });
   for (const p of s.pickups) {
     p.active = false;

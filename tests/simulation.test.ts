@@ -12,7 +12,7 @@ const DT = BALANCE.sim.fixedDt;
 // Disasters are switched off here so these tests stay calm and predictable
 // (disasters have their own tests in disasters.test.ts).
 function newGame(seed = 42): GameState {
-  return createGame({ seed, players: [{ id: 'p1', name: 'Tester' }], disasters: false });
+  return createGame({ seed, players: [{ id: 'p1', name: 'Tester' }], disasters: false, rounds: false });
 }
 
 // Run `seconds` of game time with the same input every step; collect all events.

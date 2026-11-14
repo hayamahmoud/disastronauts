@@ -100,4 +100,14 @@ export const RENDER_STYLE: RenderStyle = {
   ringStyle: 'thin',
 };
 
+// A 3D color as a CSS color string, e.g. for team colors in the HTML UI.
+export function cssColor(color: number): string {
+  return `#${color.toString(16).padStart(6, '0')}`;
+}
+
+// The CSS color for player number `colorIndex` (same as their base in 3D).
+export function teamCss(colorIndex: number): string {
+  return cssColor(THEME.team[colorIndex % THEME.team.length]);
+}
+
 export type ThemeColorKey = Exclude<keyof typeof THEME, 'team'>;

@@ -9,48 +9,100 @@ import { createKeyboardInput } from './input/keyboard';
 import { createGameView } from './render/gameView';
 import { createHud, type Hud } from './ui/hud';
 import { createStartScreen } from './ui/startScreen';
-import { explorerInput } from './core/explorerInput';
 import './ui/startScreen.css';
 import { createGameAudio } from './audio/gameAudio';
 import { createMinimap } from './ui/minimap';
+import { createScoreboard, type Scoreboard } from './ui/scoreboard';
+import { createLobby, type Lobby } from './ui/lobby';
+import { createPodium, type Podium } from './ui/podium';
 
 const LOCAL_PLAYER = 'p1';
 const audio = createGameAudio(LOCAL_PLAYER);
-
-// Use ?seed=123 in the URL to replay the exact same map; otherwise random.
-const urlSeed = Number(new URLSearchParams(window.location.search).get('seed'));
-const seed = Number.isFinite(urlSeed) && urlSeed > 0 ? urlSeed : Math.floor(Math.random() * 1e9);
-console.info(`Disastronauts seed: ${seed} (add ?seed=${seed} to the URL to replay this map)`);
-
 const params = new URLSearchParams(window.location.search);
 
+// Use ?seed=123 in the URL to replay the exact same map; otherwise random.
+// (Only the first round uses it; "Play again" always picks a new map.)
+const urlSeed = Number(params.get('seed'));
+const firstSeed = Number.isFinite(urlSeed) && urlSeed > 0 ? urlSeed : randomSeed();
+function randomSeed() {
+  return Math.floor(Math.random() * 1e9);
+}
+
 let state: ReturnType<typeof createGame>;
-let view: ReturnType<typeof createGameView>;
+let view: ReturnType<typeof createGameView> | null = null;
 let hud: Hud;
 let minimap: ReturnType<typeof createMinimap>;
+let scoreboard: Scoreboard;
+let lobby: Lobby;
+let podium: Podium;
 let playing = false;
-const menu = createStartScreen(options => {
-  // Players 2-4 are computer explorers (until real multiplayer arrives).
-  state = createGame({
-    seed,
-    players: Array.from({ length: options.players }, (_, i) => ({ id: `p${i + 1}`, name: i === 0 ? 'You' : `Explorer ${i + 1}` })),
-  });
-  view = createGameView(document.getElementById('game')!, state, LOCAL_PLAYER, menu.shadows());
-  hud = createHud(document.getElementById('ui')!, LOCAL_PLAYER, state.terrain.isPlaceholder, togglePowerPriority, callEarth);
-  minimap = createMinimap(document.getElementById('ui')!, LOCAL_PLAYER, () => view.getMapYaw());
-  if (import.meta.env.DEV) setUpDevHelpers();
-  playing = true;
+let playerCount = 4;
+let shadows = true;
+
+const menu = createStartScreen((options) => {
+  playerCount = options.players;
+  shadows = menu.shadows();
+  startRound(firstSeed);
 }, audio);
 
-// Inputs for the computer explorers (every player except you).
-function explorerInputs() {
-  return state.players.filter((p) => p.id !== LOCAL_PLAYER).map((p) => explorerInput(state, p));
+// Builds a fresh round: new world, view and HUD. Used for the first round and
+// for "Play again" (instant replay, no trip back to the menu).
+function startRound(seed: number) {
+  console.info(`Disastronauts seed: ${seed} (add ?seed=${seed} to the URL to replay this map)`);
+  const ui = document.getElementById('ui')!;
+  view?.dispose();
+  ui.replaceChildren();
+
+  // Player 1 is you; players 2-4 are computer rivals, one per personality.
+  const order = BALANCE.bots.order;
+  state = createGame({
+    seed,
+    players: Array.from({ length: playerCount }, (_, i) => {
+      if (i === 0) return { id: 'p1', name: 'You' };
+      const bot = order[(i - 1) % order.length];
+      return { id: `p${i + 1}`, name: BALANCE.bots.personalities[bot].name, bot };
+    }),
+    // Dev only: ?round=60 for a 1-minute round, ?lobby=0 to skip the countdown.
+    ...devRoundOverrides(),
+  });
+  view = createGameView(document.getElementById('game')!, state, LOCAL_PLAYER, shadows);
+  hud = createHud(ui, LOCAL_PLAYER, state.terrain.isPlaceholder, togglePowerPriority, callEarth);
+  minimap = createMinimap(ui, LOCAL_PLAYER, () => view!.getMapYaw());
+  scoreboard = createScoreboard(ui, LOCAL_PLAYER);
+  lobby = createLobby(ui, state, LOCAL_PLAYER);
+  podium = createPodium(ui, LOCAL_PLAYER, () => { audio.click(); startRound(randomSeed()); }, backToMenu);
+  pendingPriority = undefined;
+  pendingSupplyDrop = false;
+  if (import.meta.env.DEV) setUpDevHelpers();
+  playing = true;
 }
+
+// Back to the start screen with a fresh random map (drops ?seed from the URL).
+function backToMenu() {
+  audio.click();
+  window.location.href = window.location.pathname;
+}
+
+function devRoundOverrides() {
+  if (!import.meta.env.DEV) return {};
+  const round = Number(params.get('round'));
+  const lobbySeconds = Number(params.get('lobby'));
+  return {
+    ...(params.has('round') && round > 0 ? { roundSeconds: round } : {}),
+    ...(params.has('lobby') && lobbySeconds >= 0 ? { lobbySeconds } : {}),
+  };
+}
+
+// Buttons and keys only do something while the round is being played.
+function canAct() {
+  return playing && state.round.phase === 'playing';
+}
+
 // Switching power priority is sent to the sim as part of the next input
 // (the same way a Roblox client would ask the server).
 let pendingPriority: PowerPriority | undefined;
 function togglePowerPriority() {
-  if (!playing) return;
+  if (!canAct()) return;
   audio.click();
   const me = findPlayer(state, LOCAL_PLAYER);
   const base = me && findBase(state, me.baseId);
@@ -62,13 +114,13 @@ function togglePowerPriority() {
 // Calling Earth for a supply drop is also a one-off command.
 let pendingSupplyDrop = false;
 function callEarth() {
-  if (!playing) return;
+  if (!canAct()) return;
   audio.click();
   pendingSupplyDrop = true;
 }
 
 const keyboard = createKeyboardInput();
-keyboard.onKeyPress('KeyC', () => { if (playing) view.toggleCameraMode(); });
+keyboard.onKeyPress('KeyC', () => { if (playing) view?.toggleCameraMode(); });
 keyboard.onKeyPress('KeyP', togglePowerPriority);
 keyboard.onKeyPress('Space', callEarth);
 
@@ -76,7 +128,8 @@ keyboard.onKeyPress('Space', callEarth);
 // - Inspect the live state from the browser console with `__disastronauts.state`.
 // - ?disaster=dustStorm (or solarFlare, coldNight) makes that disaster the next
 //   one, starting 10 seconds into the game.
-// - ?skip=30 fast-forwards the game 30 seconds.
+// - ?skip=30 fast-forwards the game 30 seconds (after the lobby).
+// - ?round=60 makes the round 60 seconds long; ?lobby=0 skips the countdown.
 function setUpDevHelpers() {
   (window as unknown as { __disastronauts: unknown }).__disastronauts = { state };
   const kind = params.get('disaster');
@@ -91,7 +144,8 @@ function setUpDevHelpers() {
     };
   }
   const skip = Number(params.get('skip'));
-  for (let t = 0; t < skip; t += BALANCE.sim.fixedDt) step(state, explorerInputs(), BALANCE.sim.fixedDt);
+  if (skip > 0) state.round.countdown = 0; // skipping makes no sense with a countdown in the way
+  for (let t = 0; t < skip; t += BALANCE.sim.fixedDt) step(state, [], BALANCE.sim.fixedDt);
 }
 
 // Game loop: the sim advances in fixed 1/60 s steps (same result on every
@@ -102,7 +156,7 @@ let accumulator = 0;
 function frame(now: number) {
   const dt = Math.min((now - last) / 1000, 0.25); // ignore huge gaps (e.g. tab was hidden)
   last = now;
-  if (!playing) { requestAnimationFrame(frame); return; }
+  if (!playing || !view) { requestAnimationFrame(frame); return; }
   accumulator += dt;
 
   const events: GameEvent[] = [];
@@ -118,7 +172,8 @@ function frame(now: number) {
     const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, powerPriority: pendingPriority, callSupplyDrop: pendingSupplyDrop };
     pendingPriority = undefined; // one-off commands: send them once
     pendingSupplyDrop = false;
-    events.push(...step(state, [input, ...explorerInputs()], BALANCE.sim.fixedDt));
+    // The computer rivals decide their own moves inside step().
+    events.push(...step(state, [input], BALANCE.sim.fixedDt));
     accumulator -= BALANCE.sim.fixedDt;
     steps++;
   }
@@ -128,6 +183,9 @@ function frame(now: number) {
   hud.update(state, events);
   audio.update(events, state.players[0].baseId);
   minimap.update(state);
+  scoreboard.update(state);
+  lobby.update(state, events);
+  podium.update(state);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

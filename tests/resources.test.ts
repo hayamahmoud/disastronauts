@@ -15,7 +15,7 @@ const SOL = BALANCE.sol.seconds;
 // Disasters are switched off here so these tests stay calm and predictable
 // (disasters have their own tests in disasters.test.ts).
 function newGame(seed = 42): GameState {
-  const s = createGame({ seed, players: [{ id: 'p1', name: 'Tester' }], disasters: false });
+  const s = createGame({ seed, players: [{ id: 'p1', name: 'Tester' }], disasters: false, rounds: false });
   // Park the rover far from its base and turn off pickups, so only the
   // base's own production and consumption change the numbers.
   s.players[0].pos = { x: s.bases[0].pos.x + 100, z: s.bases[0].pos.z };

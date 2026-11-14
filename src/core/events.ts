@@ -3,7 +3,7 @@
 // On Roblox these become RemoteEvents fired from the server to clients.
 
 import type { BuildingKind, DisasterKind, FlareClass, PickupKind } from '../config/balance';
-import type { Cargo, MissionKind, Vec2 } from './state';
+import type { Cargo, MissionKind, Standing, Vec2 } from './state';
 
 export type GameEvent =
   | { type: 'PickupCollected'; playerId: string; pickupId: number; kind: PickupKind }
@@ -33,4 +33,9 @@ export type GameEvent =
   // Supply drops
   | { type: 'SupplyDropCalled'; playerId: string; dropId: number; landsIn: number; lightMinutes: number }
   | { type: 'SupplyDropDenied'; playerId: string; reason: 'cooldown' | 'noPower' | 'noBase' }
-  | { type: 'SupplyDropLanded'; playerId: string; dropId: number; pos: Vec2 };
+  | { type: 'SupplyDropLanded'; playerId: string; dropId: number; pos: Vec2 }
+  // Round flow
+  | { type: 'RoundCountdown'; secondsLeft: number } // lobby: 3, 2, 1…
+  | { type: 'RoundStarted'; seconds: number }
+  | { type: 'RoundEndingSoon'; secondsLeft: number }
+  | { type: 'RoundEnded'; results: Standing[] };
