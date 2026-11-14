@@ -35,7 +35,7 @@ export function growBase(state: GameState, base: BaseState, events: GameEvent[])
     const index = base.buildings.length;
     const kind = G.buildOrder[index % G.buildOrder.length];
     const id = state.nextId++;
-    base.buildings.push({ id, kind, offset: buildingSlot(index) });
+    base.buildings.push({ id, kind, offset: buildingSlot(index), powered: true });
     events.push({ type: 'BuildingBuilt', baseId: base.id, buildingId: id, kind });
 
     if (kind === 'habitat') {

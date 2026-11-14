@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { BALANCE } from '../config/balance';
 import type { GameEvent } from '../core/events';
+import { sunlight, timeOfSol } from '../core/dayNight';
 import { depositRadius, magnetRadius } from '../core/growth';
 import type { GameState, PlayerState } from '../core/state';
 import { findPlayer } from '../core/state';
@@ -24,6 +25,8 @@ interface BaseView {
   group: THREE.Group; // positioned at the base center
   ring: THREE.Mesh;
   builtIds: Set<number>;
+  markers: Map<number, THREE.Mesh>; // "no power" marker per building id
+  landerMarker: THREE.Mesh;
 }
 
 interface PickupView {
@@ -38,6 +41,18 @@ interface PopAnim {
 
 const POP_TIME = 0.45; // seconds for a new building to "pop" into place
 const PICKUP_DRAW_DISTANCE = 190; // studs from the player; beyond this pickups aren't drawn
+
+// Lighting at night vs. noon (visual only). Night stays bright enough to play.
+const LIGHT = {
+  sunNight: 0.15,
+  sunNoon: 2.2,
+  skyNight: 0.55,
+  skyNoon: 1.4,
+};
+
+// Shared look for the floating "no power" marker.
+const markerGeometry = new THREE.OctahedronGeometry(0.9);
+const markerMaterial = new THREE.MeshBasicMaterial({ color: THEME.noPowerMarker, toneMapped: false });
 
 export function createGameView(container: HTMLElement, state: GameState, localPlayerId: string): GameView {
   // --- Renderer, scene, camera ---
@@ -56,8 +71,9 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
   let cameraMode: CameraMode = 'follow';
 
   // --- Lights: soft sky light + one sun that casts shadows near the player ---
-  scene.add(new THREE.HemisphereLight(THEME.skyLight, THEME.groundLight, 1.4));
-  const sun = new THREE.DirectionalLight(THEME.sunLight, 2.2);
+  const skyLight = new THREE.HemisphereLight(THEME.skyLight, THEME.groundLight, LIGHT.skyNoon);
+  scene.add(skyLight);
+  const sun = new THREE.DirectionalLight(THEME.sunLight, LIGHT.sunNoon);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const sc = sun.shadow.camera;
@@ -108,8 +124,10 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
         const ring = createGroundRing(color, 0.9, 0.7);
         ring.position.y = 0.4;
         group.add(ring);
+        const landerMarker = createMarker(13);
+        group.add(landerMarker);
         scene.add(group);
-        view = { group, ring, builtIds: new Set() };
+        view = { group, ring, builtIds: new Set(), markers: new Map(), landerMarker };
         bases.set(base.id, view);
       }
       view.ring.scale.setScalar(depositRadius(base));
@@ -126,8 +144,44 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
         model.scale.setScalar(0.01);
         view.group.add(model);
         pops.push({ obj: model, age: 0 });
+        const marker = createMarker(7);
+        marker.position.x = b.offset.x;
+        marker.position.z = b.offset.z;
+        marker.position.y += model.position.y;
+        view.group.add(marker);
+        view.markers.set(b.id, marker);
+      }
+
+      // Show the red marker over anything that's switched off for lack of Power.
+      view.landerMarker.visible = base.crew > 0 && !base.landerPowered;
+      for (const b of base.buildings) {
+        const marker = view.markers.get(b.id);
+        if (marker) marker.visible = !b.powered;
       }
     }
+  }
+
+  // Sky color, sun strength and sun direction follow the time of sol.
+  const daySky = new THREE.Color(THEME.sky);
+  const nightSky = new THREE.Color(THEME.skyNight);
+  const dayFog = new THREE.Color(THEME.fog);
+  const nightFog = new THREE.Color(THEME.fogNight);
+  const noonSun = new THREE.Color(THEME.sunLight);
+  const lowSun = new THREE.Color(THEME.sunLightLow);
+  const sunOffset = new THREE.Vector3();
+
+  function updateDayNight(time: number) {
+    const light = sunlight(time);
+    // Smooth twilight: the sky starts to darken a bit before sunset.
+    const day = Math.min(1, light * 2.5);
+    (scene.background as THREE.Color).copy(nightSky).lerp(daySky, day);
+    (scene.fog as THREE.Fog).color.copy(nightFog).lerp(dayFog, day);
+    sun.intensity = LIGHT.sunNight + (LIGHT.sunNoon - LIGHT.sunNight) * light;
+    sun.color.copy(lowSun).lerp(noonSun, light);
+    skyLight.intensity = LIGHT.skyNight + (LIGHT.skyNoon - LIGHT.skyNight) * day;
+    // The sun travels east (+x) to west (-x) across the day; low at the ends.
+    const angle = (timeOfSol(time) - 0.25) * 2 * Math.PI; // 0 at sunrise, π at sunset
+    sunOffset.set(Math.cos(angle) * 90, 30 + Math.max(0, Math.sin(angle)) * 100, 40);
   }
 
   function syncRovers(s: GameState) {
@@ -202,7 +256,7 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
 
     // Keep the sun's shadow area centered on the player.
     sun.target.position.copy(target);
-    sun.position.set(target.x + 70, target.y + 120, target.z + 40);
+    sun.position.set(target.x + sunOffset.x, target.y + sunOffset.y, target.z + sunOffset.z);
   }
 
   let firstFrame = true;
@@ -213,6 +267,13 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
       const me = findPlayer(s, localPlayerId);
       syncPickups(s, s.time, me ? me.pos : { x: 0, z: 0 });
       updatePops(dt);
+      updateDayNight(s.time);
+      const bob = Math.sin(s.time * 4) * 0.4;
+      for (const view of bases.values()) {
+        for (const m of view.markers.values()) m.rotation.y = s.time * 2;
+        view.landerMarker.rotation.y = s.time * 2;
+        view.landerMarker.position.y = 13 + bob;
+      }
 
       if (me) {
         const ground = heightAt(me.pos.x, me.pos.z);
@@ -238,4 +299,12 @@ function createGroundRing(color: number, innerRadius: number, opacity: number): 
   );
   ring.renderOrder = 1;
   return ring;
+}
+
+// A small red spinning gem that floats over a building with no Power.
+function createMarker(height: number): THREE.Mesh {
+  const m = new THREE.Mesh(markerGeometry, markerMaterial);
+  m.position.y = height;
+  m.visible = false;
+  return m;
 }

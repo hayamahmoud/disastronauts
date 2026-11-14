@@ -1,0 +1,53 @@
+// Crew health. The whole crew of a base shares one health meter (0–100).
+// It drops when crew have no Life Support, no Power (no heat), or aren't
+// covered by Shielding (radiation). It slowly recovers when all is well.
+// Low health → some crew get sick (they don't work). Health 0 → a crew member is lost.
+
+import { BALANCE } from '../config/balance';
+import type { GameEvent } from './events';
+import { countBuildings, shieldCoverage } from './resources';
+import type { BaseState, GameState } from './state';
+
+const C = BALANCE.crew;
+
+// Damage per sol right now, split by cause (the HUD uses this to explain why).
+export function crewDamagePerSol(base: BaseState): { radiation: number; noLifeSupport: number; noPower: number } {
+  // Shelters = lander + habitats. The unpowered share of them hurts the crew.
+  const shelters = 1 + countBuildings(base, 'habitat');
+  const poweredShelters = (base.landerPowered ? 1 : 0) + countBuildings(base, 'habitat', true);
+  return {
+    radiation: C.radiationDamagePerSol * (1 - shieldCoverage(base)),
+    noLifeSupport: base.stored.lifeSupport <= 0 ? C.noLifeSupportDamagePerSol : 0,
+    noPower: C.noPowerDamagePerSol * (1 - poweredShelters / shelters),
+  };
+}
+
+export function updateCrew(state: GameState, dt: number, events: GameEvent[]): void {
+  const perSol = dt / BALANCE.sol.seconds;
+  for (const base of state.bases) {
+    if (base.crew <= 0) continue;
+
+    const d = crewDamagePerSol(base);
+    const damage = d.radiation + d.noLifeSupport + d.noPower;
+    const change = damage > 0 ? -damage : C.healPerSol;
+    base.health = Math.min(C.maxHealth, base.health + change * perSol);
+
+    // Health ran out: one crew member is lost, the rest get a fresh start.
+    if (base.health <= 0) {
+      base.crew -= 1;
+      base.health = base.crew > 0 ? C.healthAfterLoss : 0;
+      events.push({ type: 'CrewLost', baseId: base.id, crewLeft: base.crew });
+    }
+
+    const sickBefore = base.sick;
+    base.sick = sickCount(base);
+    if (base.sick > sickBefore) events.push({ type: 'CrewSick', baseId: base.id, sick: base.sick });
+  }
+}
+
+// Below `sickBelow` health, a growing share of the crew is sick.
+export function sickCount(base: BaseState): number {
+  if (base.crew <= 0 || base.health >= C.sickBelow) return 0;
+  const share = (C.sickBelow - base.health) / C.sickBelow;
+  return Math.min(base.crew, Math.ceil(base.crew * share));
+}

@@ -9,4 +9,11 @@ export type GameEvent =
   | { type: 'CargoFull'; playerId: string }
   | { type: 'CargoDeposited'; playerId: string; baseId: string; itemCount: number; buildPoints: number }
   | { type: 'BuildingBuilt'; baseId: string; buildingId: number; kind: BuildingKind }
-  | { type: 'CrewAdded'; baseId: string; added: number; crewTotal: number };
+  | { type: 'CrewAdded'; baseId: string; added: number; crewTotal: number }
+  | { type: 'Sunrise'; sol: number }
+  | { type: 'Sunset'; sol: number }
+  | { type: 'PowerOut'; baseId: string } // something just switched off
+  | { type: 'PowerRestored'; baseId: string } // everything is on again
+  | { type: 'LifeSupportEmpty'; baseId: string }
+  | { type: 'CrewSick'; baseId: string; sick: number }
+  | { type: 'CrewLost'; baseId: string; crewLeft: number };

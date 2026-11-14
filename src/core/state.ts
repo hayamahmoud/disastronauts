@@ -4,7 +4,7 @@
 // Coordinates: gameplay works on the ground plane {x, z}. Height (y) comes
 // from the terrain grid. 1 unit = 1 Roblox stud. Y is up.
 
-import type { BuildingKind, PickupKind, ResourceKind } from '../config/balance';
+import type { BuildingKind, PickupKind, PowerPriority, ResourceKind } from '../config/balance';
 import type { RngState } from './rng';
 
 export interface Vec2 {
@@ -27,6 +27,8 @@ export interface PlayerInput {
   // moveZ = -1 means "away from the camera" (W / up arrow).
   moveX: number;
   moveZ: number;
+  // Optional one-off command: change which building gets Power first.
+  powerPriority?: PowerPriority;
 }
 
 export type Cargo = Record<PickupKind, number>;
@@ -49,6 +51,7 @@ export interface BuildingState {
   id: number;
   kind: BuildingKind;
   offset: Vec2; // position relative to the base center
+  powered: boolean; // false = not enough Power, the building does nothing
 }
 
 export interface BaseState {
@@ -56,9 +59,17 @@ export interface BaseState {
   ownerId: string;
   pos: Vec2;
   crew: number;
+  sick: number; // how many of `crew` are sick (they don't work)
+  health: number; // crew health, 0–100, shared by the whole crew
   buildings: BuildingState[];
   buildPoints: number; // saved up toward the next building
+  // Power and Life Support are stocks that fill up and drain.
+  // Shielding is regolith piled on the base; compare it to what the base needs.
   stored: Record<ResourceKind, number>;
+  landerPowered: boolean;
+  powerPriority: PowerPriority;
+  // Net change per sol from buildings and crew (not counting pickups). For the HUD arrows.
+  netPerSol: { power: number; lifeSupport: number };
 }
 
 export interface PickupState {
