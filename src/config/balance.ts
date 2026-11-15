@@ -420,6 +420,39 @@ export const BALANCE = {
     popupSeconds: 10, // how long a fact card stays up
     minGapSeconds: 25, // game seconds between two fact cards
   },
+
+  // "Juice": feedback that makes the game feel good (M7). Visual/sound only.
+  juice: {
+    comboWindow: 1.2, // seconds: grab the next pickup within this to keep the combo going
+    comboShowFrom: 3, // the combo counter appears from this many pickups in a row
+    comboPitchStep: 0.06, // each combo step raises the pickup sound by this much (6%)...
+    comboPitchMax: 10, // ...up to this many steps
+    floatTextSeconds: 1.4, // how long the "+12 ⚡" numbers float up after unloading
+    burstParticles: 14, // particles in one small pop (a pickup)
+    // Camera shake strength (studs) for big moments. 0 = no shake.
+    shake: {
+      disaster: 0.8,
+      wrecked: 0.7, // your base was wrecked
+      crewLost: 0.35,
+      supplyLanded: 0.4,
+      deposit: 0.12,
+    },
+    shakeSeconds: 0.6,
+  },
+
+  // First-round tutorial (M7): when each step counts as done.
+  tutorial: {
+    walkDistance: 15, // studs to walk for the "move" step
+    grabCount: 3, // pickups to grab for the "grab" step
+    barsSeconds: 6, // how long the "watch your bars" step stays up
+    doneSeconds: 4, // how long the final "you're ready" card stays up
+  },
+
+  // On-screen joystick for phones and tablets (M7).
+  touch: {
+    stickRadiusPx: 56, // how far the knob can move from the middle
+    deadZone: 0.15, // ignore tiny thumb wobbles (fraction of the radius)
+  },
 } as const;
 
 export type PickupKind = keyof typeof BALANCE.pickups.kinds;

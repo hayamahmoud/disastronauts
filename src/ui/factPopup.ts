@@ -12,6 +12,7 @@ import type { GameState } from '../core/state';
 import { findPlayer } from '../core/state';
 import { createIcon, el } from './components';
 import { factsFor, type Fact, type FactTrigger } from './facts';
+import { setTermText } from './glossary';
 
 export interface FactPopup {
   update(state: GameState, events: GameEvent[]): void;
@@ -50,7 +51,7 @@ export function createFactPopup(root: HTMLElement, localPlayerId: string): FactP
   }
 
   function show(fact: Fact, time: number) {
-    text.textContent = fact.text;
+    setTermText(text, fact.text); // glossary words get a bubble
     link.textContent = `Source: ${fact.source}`;
     link.href = fact.url;
     box.classList.remove('is-hidden');

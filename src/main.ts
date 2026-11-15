@@ -24,10 +24,17 @@ import { openShop } from './ui/shop';
 import { roundReward } from './core/progression';
 import type { PodiumReward } from './ui/podium';
 import type { Modifiers } from './core/modifiers';
+import { createTouchStick, watchTouchScreen, type TouchInput } from './input/touch';
+import { installTooltips } from './ui/glossary';
+import { createTutorial, tutorialDone, type Tutorial } from './ui/tutorial';
+import { createCombo, type Combo } from './ui/combo';
+import { createButton, el } from './ui/components';
 
 const LOCAL_PLAYER = 'p1';
 const audio = createGameAudio(LOCAL_PLAYER);
 const params = new URLSearchParams(window.location.search);
+installTooltips(); // glossary words and hover explanations (mouse, finger and keyboard)
+watchTouchScreen(); // phones/tablets: show the joystick instead of the key hints
 
 // Use ?seed=123 in the URL to replay the exact same map; otherwise random.
 // (Only the first round uses it; "Play again" always picks a new map.)
@@ -45,6 +52,9 @@ let scoreboard: Scoreboard;
 let lobby: Lobby;
 let podium: Podium;
 let factPopup: FactPopup;
+let stick: TouchInput;
+let tutorial: Tutorial | null = null;
+let combo: Combo;
 let playing = false;
 let playerCount = 4;
 let shadows = true;
@@ -119,6 +129,16 @@ function startRound(seed: number) {
     () => reward,
     showShop,
   );
+  // Touch screens: a joystick (bottom left) and a View button (switch camera).
+  stick = createTouchStick(ui);
+  const viewButton = createButton(ui, () => { audio.click(); view?.toggleCameraMode(); });
+  viewButton.classList.add('touch-view');
+  viewButton.append(el('span', '', '🎥 View'));
+  viewButton.title = 'Switch between the behind view and the top view.';
+  // First time playing (in this browser): a short step-by-step tutorial.
+  tutorial = tutorialDone() ? null : createTutorial(ui, LOCAL_PLAYER, () => audio.chime());
+  if (tutorial) hud.skipOpening();
+  combo = createCombo();
   survivedDisaster = false;
   pendingPriority = undefined;
   pendingSupplyDrop = false;
@@ -225,8 +245,10 @@ function frame(now: number) {
   while (accumulator >= BALANCE.sim.fixedDt && steps < BALANCE.sim.maxStepsPerFrame) {
     // Behind view: A/D turn and W/S walk. Top view: W/A/S/D move up/left/down/right
     // on the SCREEN, so we turn the keys by however far the map has been dragged.
-    const move = keyboard.getMove();
-    const steer = view.getCameraMode() === 'follow' ? keyboard.getTurnWalk() : {};
+    // The touch joystick wins while a finger is on it; otherwise the keys.
+    const pad = stick.isActive() ? stick : keyboard;
+    const move = pad.getMove();
+    const steer = view.getCameraMode() === 'follow' ? pad.getTurnWalk() : {};
     const yaw = view.getMapYaw();
     const moveX = move.x * Math.cos(yaw) + move.z * Math.sin(yaw);
     const moveZ = -move.x * Math.sin(yaw) + move.z * Math.cos(yaw);
@@ -247,8 +269,9 @@ function frame(now: number) {
   awardRound(events);
   view.update(state, events, dt);
   hud.update(state, events);
+  tutorial?.update(state, events);
   factPopup.update(state, events);
-  audio.update(events, state.players[0].baseId);
+  audio.update(events, state.players[0].baseId, updateCombo(events));
   minimap.update(state);
   scoreboard.update(state);
   lobby.update(state, events);
@@ -256,6 +279,18 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+// Grabbing pickups quickly in a row builds a combo ("Combo ×5!" and a rising
+// note). Feedback only: it doesn't change the score. Returns the combo now.
+function updateCombo(events: GameEvent[]): number {
+  let count = combo.current(state.time);
+  for (const e of events) {
+    if (e.type !== 'PickupCollected' || e.playerId !== LOCAL_PLAYER) continue;
+    count = combo.hit(state.time);
+    hud.showCombo(count);
+  }
+  return Math.max(1, count);
+}
 
 // A disaster ended and your base is still standing with crew: you survived it!
 function noteSurvival(events: GameEvent[]) {

@@ -18,6 +18,7 @@ import { RENDER_STYLE, THEME, type ThemeColorKey } from '../ui/theme';
 import { createDisasterFx, createLandingMarker, createShieldDome } from './disasterFx';
 import { animateCharacter, createModel } from './models';
 import { createTerrainMesh } from './terrainMesh';
+import { createJuice } from './juice';
 import { findItem } from '../services/catalog';
 
 export type CameraMode = 'follow' | 'topDown';
@@ -84,7 +85,11 @@ const POP_TIME = 0.45; // seconds for a new building to "pop" into place
 const PICKUP_DRAW_DISTANCE = 190; // studs from the player; beyond this pickups aren't drawn
 const DROP_FALL_TIME = 3; // a supply capsule is seen falling for the last few seconds
 const DROP_FALL_HEIGHT = 140;
-const SHAKE_TIME = 0.8; // camera shake when a disaster hits
+// Camera shake (visual only). Kids who turn on "reduce motion" don't get any.
+const REDUCE_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// What each pickup kind adds when you unload it, for the floating "+5 ⚡" numbers.
+const RESOURCE_ICON = { power: '⚡', lifeSupport: '🫁', shielding: '🛡️' } as const;
+const RESOURCE_COLOR = { power: 'badgePower', lifeSupport: 'badgeLife', shielding: 'badgeShield' } as const;
 
 // Lighting at night vs. noon (visual only). Night stays bright enough to play.
 const LIGHT = {
@@ -205,7 +210,18 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
   const drops = new Map<number, DropView>();
   const pops: PopAnim[] = [];
   const fx = createDisasterFx(scene);
-  let shake = 0;
+  const juice = createJuice(scene, renderer.getPixelRatio());
+  let shake = 0; // seconds of shaking left
+  let shakeAmount = 0; // how hard (studs)
+  // Start a camera shake; a stronger one wins over a weaker one already going.
+  function kick(amount: number) {
+    if (REDUCE_MOTION) return;
+    const S = BALANCE.juice.shakeSeconds;
+    const now = shake > 0 ? (shake / S) * shakeAmount : 0;
+    if (amount < now) return;
+    shake = S;
+    shakeAmount = amount;
+  }
 
   // Magnet ring under the local player's rover, so kids can see their pull range.
   const thin = RENDER_STYLE.ringStyle === 'thin';
@@ -593,9 +609,79 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
     sun.position.set(target.x + sunOffset.x, target.y + sunOffset.y, target.z + sunOffset.z);
   }
 
+  // Little rewards for things that just happened (bursts, floating numbers, shake).
+  // Runs BEFORE the sync functions, so a grabbed pickup's mesh is still there.
+  function playJuice(s: GameState, events: GameEvent[]) {
+    const J = BALANCE.juice.shake;
+    const mine = s.bases.find((b) => b.ownerId === localPlayerId)?.id;
+    const at = new THREE.Vector3();
+    for (const e of events) {
+      switch (e.type) {
+        case 'PickupCollected': {
+          const view = pickups.get(e.pickupId);
+          if (!view) break;
+          at.copy(view.obj.position).setY(view.obj.position.y + 1.5);
+          juice.burst(at, THEME[BADGE_RING[e.kind]] as number, e.playerId === localPlayerId ? undefined : 6);
+          break;
+        }
+        case 'TaskCompleted': {
+          const view = tasks.get(e.siteId);
+          if (!view) break;
+          at.copy(view.group.position).setY(view.group.position.y + 3);
+          juice.burst(at, THEME[BADGE_RING[e.kind]] as number, 26, 13, 16);
+          juice.burst(at, THEME.sparkle, 10, 8, 18);
+          break;
+        }
+        case 'CargoDeposited': {
+          const view = bases.get(e.baseId);
+          if (!view || e.playerId !== localPlayerId) break;
+          const p = findPlayer(s, e.playerId);
+          at.copy(view.group.position).setY(view.group.position.y + 9);
+          juice.burst(at, p ? teamColor(p) : THEME.accent, 22, 11, 18);
+          juice.burst(at, THEME.sparkle, 10, 9, 20);
+          // One floating number per resource that went up, e.g. "+10 ⚡".
+          let delay = 0;
+          for (const [kind, count] of Object.entries(e.items) as [PickupKind, number][]) {
+            const info = BALANCE.pickups.kinds[kind];
+            if (count <= 0 || info.resource === 'none') continue;
+            juice.floatText(at, `+${count * info.amount} ${RESOURCE_ICON[info.resource]}`, THEME[RESOURCE_COLOR[info.resource]], delay);
+            delay += 0.22;
+          }
+          if (e.buildPoints > 0) juice.floatText(at, `+${e.buildPoints} 🔨`, THEME.badgeBuild, delay);
+          kick(J.deposit);
+          break;
+        }
+        case 'BuildingBuilt': {
+          const view = bases.get(e.baseId);
+          const base = s.bases.find((b) => b.id === e.baseId);
+          const b = base?.buildings.find((x) => x.id === e.buildingId);
+          if (!view || !b) break;
+          const wx = view.group.position.x + b.offset.x;
+          const wz = view.group.position.z + b.offset.z;
+          juice.burst(at.set(wx, heightAt(wx, wz) + 1, wz), THEME.dustPuff, 24, 12, 8);
+          break;
+        }
+        case 'SupplyDropLanded':
+          juice.burst(at.set(e.pos.x, heightAt(e.pos.x, e.pos.z) + 1, e.pos.z), THEME.dustPuff, 30, 16, 10);
+          if (e.playerId === localPlayerId) kick(J.supplyLanded);
+          break;
+        case 'DisasterStarted':
+          kick(J.disaster);
+          break;
+        case 'BaseWrecked':
+          if (e.baseId === mine) kick(J.wrecked);
+          break;
+        case 'CrewLost':
+          if (e.baseId === mine) kick(J.crewLost);
+          break;
+      }
+    }
+  }
+
   let firstFrame = true;
   return {
     update(s, events, dt) {
+      playJuice(s, events);
       syncBases(s);
       syncWrecks(s);
       syncDrops(s);
@@ -614,7 +700,6 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
         const u = (skyDome.material as THREE.ShaderMaterial).uniforms;
         (u.horizon.value as THREE.Color).copy((scene.fog as THREE.Fog).color);
       }
-      if (events.some((e) => e.type === 'DisasterStarted')) shake = SHAKE_TIME;
       const bob = Math.sin(s.time * 4) * 0.4;
       for (const view of bases.values()) {
         for (const m of view.markers.values()) m.rotation.y = s.time * 2;
@@ -629,10 +714,11 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
         updateCamera(new THREE.Vector3(me.pos.x, ground, me.pos.z), me.heading, dt, firstFrame);
         firstFrame = false;
       }
-      // A short rumble when a disaster hits (visual only).
+      juice.update(dt, cameraMode === 'topDown');
+      // A short rumble when something big happens (visual only).
       if (shake > 0) {
         shake = Math.max(0, shake - dt);
-        const k = (shake / SHAKE_TIME) * 0.8;
+        const k = (shake / BALANCE.juice.shakeSeconds) * shakeAmount;
         camera.position.x += (Math.random() - 0.5) * k;
         camera.position.y += (Math.random() - 0.5) * k;
       }
