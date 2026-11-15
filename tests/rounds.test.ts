@@ -36,8 +36,20 @@ function run(state: GameState, seconds: number, input?: Omit<PlayerInput, 'playe
 }
 
 describe('round flow', () => {
-  it('starts in the lobby: nobody moves and the clock does not run', () => {
+  it('starts immediately by default with no countdown', () => {
     const s = fullGame();
+    expect(s.round.phase).toBe('playing');
+    expect(s.round.countdown).toBe(0);
+    const start = { ...s.players[0].pos };
+    const events = run(s, 0.1, { moveX: 1, moveZ: 0 });
+    expect(s.players[0].pos.x).toBeGreaterThan(start.x);
+    expect(s.time).toBeGreaterThan(0);
+    expect(events.some(e => e.type === 'RoundCountdown')).toBe(false);
+    expect(events.filter(e => e.type === 'RoundStarted')).toHaveLength(1);
+  });
+
+  it('an optional lobby keeps everyone still and pauses the clock', () => {
+    const s = fullGame(11, { lobbySeconds: 10 });
     expect(s.round.phase).toBe('lobby');
     const start = { ...s.players[0].pos };
     const botStart = { ...s.players[1].pos };
@@ -48,9 +60,9 @@ describe('round flow', () => {
     expect(roundTimeLeft(s)).toBe(BALANCE.round.seconds);
   });
 
-  it('counts down 3, 2, 1 and then starts', () => {
-    const s = fullGame();
-    const events = run(s, BALANCE.round.lobbySeconds + 0.1);
+  it('an optional lobby counts down 3, 2, 1 and then starts', () => {
+    const s = fullGame(11, { lobbySeconds: 10 });
+    const events = run(s, 10.1);
     const counts = events.filter((e) => e.type === 'RoundCountdown').map((e) => (e.type === 'RoundCountdown' ? e.secondsLeft : 0));
     expect(counts.slice(-3)).toEqual([3, 2, 1]);
     expect(events.filter((e) => e.type === 'RoundStarted')).toHaveLength(1);
