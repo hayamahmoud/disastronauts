@@ -2,7 +2,7 @@
 // It faces the same way as the top view (north up until the player drags the
 // view round; an "N" on the rim always shows north). Shows you (an arrow pointing where you face), your base (a house,
 // pinned to the edge with an arrow when it's off the map), other bases and
-// players, nearby pickups, wrecks (an ✕ in the old owner's color) and where
+// players, nearby pickups (mini task sites are bigger dots with a light rim), wrecks (an ✕ in the old owner's color) and where
 // your supply drop will land (an orange ring). It only READS the game state.
 
 import { BALANCE, type PickupKind } from '../config/balance';
@@ -85,6 +85,22 @@ export function createMinimap(root: HTMLElement, localPlayerId: string, getYaw: 
         ctx.beginPath();
         ctx.arc(q.x, q.y, 1.8, 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      // Mini task sites: bigger dots with a light rim, since they're worth more.
+      for (const t of state.taskSites) {
+        if (!t.active) continue;
+        const dx = t.pos.x - me.pos.x;
+        const dz = t.pos.z - me.pos.z;
+        if (dx * dx + dz * dz > M.viewRadius * M.viewRadius) continue;
+        const q = toMap(t.pos.x, t.pos.z);
+        ctx.fillStyle = css(PICKUP_COLOR[t.kind]());
+        ctx.strokeStyle = css(THEME.badgeRim);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, 3.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
       }
 
       // Other bases (team-colored circles the size of their drop-off zone).

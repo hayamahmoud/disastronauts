@@ -216,6 +216,10 @@ export function createGameAudio(localPlayerId: string) {
         if (!mine) continue;
         if (event.type === 'PickupCollected' && now - lastPickup > 0.09) {
           tone(660, now, 0.12, 0.065, 'sine', effects, 990); lastPickup = now;
+        } else if (event.type === 'TaskStarted') {
+          tone(140, now, 0.25, 0.05, 'sawtooth', effects, 190); // tool whirrs to life
+        } else if (event.type === 'TaskCompleted') {
+          [659, 784, 988, 1319].forEach((note, i) => tone(note, now + i * 0.06, 0.22, 0.06)); // job done!
         } else if (event.type === 'CargoDeposited') {
           [392, 494, 587].forEach((note, i) => tone(note, now + i * 0.07, 0.24, 0.07));
         } else if (event.type === 'MissionEnded' && event.stars > 0) {

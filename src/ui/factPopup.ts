@@ -1,10 +1,12 @@
 // "Did you know?" pop-ups: a real NASA fact at the moment it matters
 // (a flare starts → how flares are measured; you build a greenhouse →
 // astronauts grow lettuce in space…). Each trigger shows at most once per
-// round, and pop-ups are spaced out so they never pile up.
+// round, and pop-ups are spaced out so they never pile up. Facts for a mini
+// task you just did skip the spacing (but still wait for an open one to close),
+// so each task really teaches its fact.
 // It only READS game events and state.
 
-import { BALANCE } from '../config/balance';
+import { BALANCE, type TaskKind } from '../config/balance';
 import type { GameEvent } from '../core/events';
 import type { GameState } from '../core/state';
 import { findPlayer } from '../core/state';
@@ -17,6 +19,9 @@ export interface FactPopup {
 
 // A trigger that had to wait longer than this (game seconds) is dropped: it's old news.
 const MAX_WAIT = 15;
+
+const TASK_TRIGGER: Record<TaskKind, FactTrigger> = { ice: 'taskIce', solar: 'taskSolar', regolith: 'taskRegolith' };
+const SKIPS_GAP = new Set<FactTrigger>(Object.values(TASK_TRIGGER));
 
 export function createFactPopup(root: HTMLElement, localPlayerId: string): FactPopup {
   const box = el('aside', 'fact-popup is-hidden');
@@ -70,6 +75,8 @@ export function createFactPopup(root: HTMLElement, localPlayerId: string): FactP
         return e.baseId === myBase ? 'crewSick' : null;
       case 'MissionStarted':
         return e.playerId === localPlayerId && e.kind === 'bringRegolith' ? 'shieldMission' : null;
+      case 'TaskCompleted':
+        return e.playerId === localPlayerId ? TASK_TRIGGER[e.kind] : null;
       default:
         return null;
     }
@@ -92,7 +99,8 @@ export function createFactPopup(root: HTMLElement, localPlayerId: string): FactP
         waiting = null;
         return;
       }
-      if (open || state.time - shownAt < F.minGapSeconds) return;
+      if (open) return;
+      if (!SKIPS_GAP.has(waiting.trigger) && state.time - shownAt < F.minGapSeconds) return;
       // Pick one of the trigger's facts; the seed keeps it the same for a replayed map.
       const list = factsFor(waiting.trigger);
       used.add(waiting.trigger);

@@ -198,7 +198,9 @@ function frame(now: number) {
     const yaw = view.getMapYaw();
     const moveX = move.x * Math.cos(yaw) + move.z * Math.sin(yaw);
     const moveZ = -move.x * Math.sin(yaw) + move.z * Math.cos(yaw);
-    const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, powerPriority: pendingPriority, callSupplyDrop: pendingSupplyDrop };
+    // Hold E (or the on-screen work button) to work on a mini task.
+    const work = keyboard.isDown('KeyE') || hud.isWorkHeld();
+    const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, work, powerPriority: pendingPriority, callSupplyDrop: pendingSupplyDrop };
     pendingPriority = undefined; // one-off commands: send them once
     pendingSupplyDrop = false;
     // The computer rivals decide their own moves inside step().

@@ -5,11 +5,12 @@
 //   bottom left:  keyboard keys; bottom right: Call Earth + the Power-first button
 //   left:         the mission card (one goal at a time, with stars)
 //   middle:       the disaster banner (warning countdown, then what's happening)
+//   bottom middle: "Hold E to drill the ice" when you stand at a mini task
 // It only READS the game state; things a player can do here (switch power
-// priority, call Earth) go back through callbacks as input.
+// priority, call Earth, hold the work button) go back through callbacks as input.
 
 import { PICKUP_ICON, type UiIconId } from '../assets/manifest';
-import type { DisasterKind, FlareClass, PowerPriority } from '../config/balance';
+import type { DisasterKind, FlareClass, PowerPriority, TaskKind } from '../config/balance';
 import { BALANCE } from '../config/balance';
 import { crewDamagePerSol, flareCoverage, isOwnerOutside } from '../core/crew';
 import { isNight, solNumber, timeOfSol } from '../core/dayNight';
@@ -21,6 +22,7 @@ import { shieldCoverage, shieldNeeded, shieldTotal, storageCapacity } from '../c
 import type { BaseState, GameState, MissionState, PlayerState } from '../core/state';
 import { distance, findBase, findPlayer } from '../core/state';
 import { supplyDropDelay } from '../core/supplyDrop';
+import { findTaskSite, hasRoomFor, nearestTaskSite, taskProgress } from '../core/tasks';
 import { canAbsorb } from '../core/wrecks';
 import { niceDate, type FlareSet } from '../services/DataService';
 import { createBadge, createButton, createChip, createIcon, createMessage, el, levelFor } from './components';
@@ -52,7 +54,18 @@ const FLARE_NAME: Record<FlareClass, string> = { C: 'C-class (weak)', M: 'M-clas
 
 export interface Hud {
   update(state: GameState, events: GameEvent[]): void;
+  // True while the work button is pressed with a mouse or finger (touch screens).
+  isWorkHeld(): boolean;
 }
+
+// Mini tasks in kid words: what you do, what it looks like while you do it,
+// and the message when it's done (same icons as the badges over pickups).
+const TASK: Record<TaskKind, { todo: string; doing: string; done: string }> = {
+  ice: { todo: 'drill the ice', doing: 'Drilling the ice…', done: 'Ice drilled!' },
+  solar: { todo: 'fix the solar panel', doing: 'Fixing the panel…', done: 'Panel fixed!' },
+  regolith: { todo: 'scoop the soil', doing: 'Scooping soil…', done: 'Soil scooped!' },
+};
+const TASK_EMOJI: Record<TaskKind, string> = { ice: '🫁', solar: '⚡', regolith: '🛡️' };
 
 const BUILDING_NAMES: Record<string, string> = {
   habitat: 'Habitat',
@@ -145,7 +158,29 @@ export function createHud(
   keyGroup([], '🖱️ Drag');
   keyGroup(['P'], 'Power');
   keyGroup(['Space'], 'Call Earth');
+  keyGroup(['E'], 'Hold: Work');
   root.appendChild(keys);
+
+  // --- Bottom middle: the mini task prompt with its work bar ---
+  // Hold E, or press and hold this button (for mouse and touch screens).
+  const task = el('button', 'button hud-task is-hidden');
+  task.type = 'button';
+  const taskIcon = el('span', 'hud-task-icon');
+  const taskText = el('span', 'hud-task-text');
+  const taskBar = el('span', 'hud-task-bar');
+  const taskFill = el('span');
+  taskBar.appendChild(taskFill);
+  task.append(taskIcon, taskText, taskBar);
+  root.appendChild(task);
+  let workHeld = false;
+  task.addEventListener('pointerdown', (e) => {
+    workHeld = true;
+    task.setPointerCapture(e.pointerId); // keep holding even if the finger slides a bit
+  });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) {
+    task.addEventListener(type, () => (workHeld = false));
+  }
+  task.addEventListener('contextmenu', (e) => e.preventDefault()); // long-press on phones
 
   // --- Bottom right, above Power-first: call Earth for a supply drop ---
   const callButton = createButton(root, onCallEarth);
@@ -182,9 +217,12 @@ export function createHud(
   let lastAlert = '';
   let lastCall = '';
   let lastOverlay = '';
+  let lastTask = '';
   let shownOpening = false;
 
   return {
+    isWorkHeld: () => workHeld,
+
     update(state, events) {
       const me = findPlayer(state, localPlayerId);
       if (!me) return;
@@ -200,6 +238,7 @@ export function createHud(
 
       updateMission(me);
       updateAlert(state);
+      updateTask(state, me);
       updateCallButton(me, base, state);
 
       if (base) {
@@ -271,6 +310,8 @@ export function createHud(
           message.show(why[e.reason], 2.5);
         } else if (e.type === 'SupplyDropLanded' && e.playerId === localPlayerId) {
           message.show('📦 Your supply drop landed near your base!', 3);
+        } else if (e.type === 'TaskCompleted' && e.playerId === localPlayerId) {
+          message.show(`${TASK[e.kind].done} +${e.items} ${TASK_EMOJI[e.kind]}`, 2.5);
         } else if (e.type === 'RoundEndingSoon') {
           message.show(`⏱️ ${e.secondsLeft} seconds left! Make every point count!`, 4);
         }
@@ -371,6 +412,29 @@ export function createHud(
     if (!title) return;
     alertTitle.replaceChildren(createIcon(title[0]), el('span', '', ' ' + title[1]));
     alertText.textContent = text;
+  }
+
+  // The mini task you're standing at: "Hold E to drill the ice" and its work bar.
+  function updateTask(state: GameState, me: PlayerState) {
+    const site = state.round.phase === 'playing' ? (findTaskSite(state, me.working) ?? nearestTaskSite(state, me)) : null;
+    if (site) taskFill.style.width = `${(taskProgress(site) * 100).toFixed(1)}%`;
+    const room = site ? hasRoomFor(state, me, site.kind) : false;
+    const key = site ? `${site.id}|${me.working === site.id}|${room}` : '';
+    if (key === lastTask) return;
+    lastTask = key;
+    task.classList.toggle('is-hidden', !site);
+    if (!site) {
+      workHeld = false;
+      return;
+    }
+    const t = TASK[site.kind];
+    task.classList.toggle('is-working', me.working === site.id);
+    task.classList.toggle('is-blocked', !room && me.working !== site.id);
+    taskIcon.replaceChildren(createIcon(PICKUP_ICON[site.kind]));
+    if (me.working === site.id) taskText.replaceChildren(el('span', '', t.doing));
+    else if (!room) taskText.replaceChildren(el('span', '', 'Backpack too full! Empty it at your base.'));
+    else taskText.replaceChildren(el('kbd', '', 'E'), el('span', '', ` Hold to ${t.todo}`));
+    task.title = `Hold E (or press and hold here) to ${t.todo}. You can't move while you work!`;
   }
 
   // "📡 Call Earth (20⚡)", or how long until the drop arrives / you can call again.

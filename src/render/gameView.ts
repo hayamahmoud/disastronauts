@@ -10,7 +10,7 @@ import { flareCoverage } from '../core/crew';
 import type { GameState, PlayerState } from '../core/state';
 import { findPlayer } from '../core/state';
 import { sampleHeight } from '../core/terrain';
-import { BUILDING_ASSET, PICKUP_ASSET, PICKUP_ICON, UI_ICONS } from '../assets/manifest';
+import { BUILDING_ASSET, PICKUP_ASSET, PICKUP_ICON, TASK_ASSET, UI_ICONS } from '../assets/manifest';
 import type { PickupKind } from '../config/balance';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -58,6 +58,16 @@ interface PickupView {
   badge: THREE.Sprite;
 }
 
+// A mini task site: the big model, its badge, and a dashed ring showing how
+// close you must stand to work on it.
+interface TaskView {
+  group: THREE.Group; // on the ground; holds the ring and the badge
+  model: THREE.Group; // wiggles while someone works on it
+  kind: string;
+  badge: THREE.Sprite;
+  active: boolean; // last frame's state, to spot a respawn
+}
+
 // A badge that floats up and fades when you grab a pickup.
 interface GrabPop {
   sprite: THREE.Sprite;
@@ -88,6 +98,8 @@ const LIGHT = {
 const BADGE_SIZE = 2.6; // studs across
 const BADGE_TOP_VIEW_SCALE = 1.8; // bigger in the top view, where the camera is far away
 const BADGE_HEIGHT = 3.9; // studs above the pickup's base
+const TASK_BADGE_SCALE = 1.4; // mini task badges are bigger: they're worth more
+const TASK_BADGE_HEIGHT = 7.5;
 const GRAB_POP_TIME = 0.7; // seconds the "you got it" badge floats up
 const BADGE_RING: Record<PickupKind, keyof typeof THEME> = {
   crate: 'badgeBuild',
@@ -187,6 +199,7 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
   const rovers = new Map<string, THREE.Group>();
   const bases = new Map<string, BaseView>();
   const pickups = new Map<number, PickupView>();
+  const tasks = new Map<number, TaskView>();
   const wrecks = new Map<number, WreckView>();
   const drops = new Map<number, DropView>();
   const pops: PopAnim[] = [];
@@ -334,7 +347,7 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
       }
       // Characters (astronauts) stay upright and walk; vehicles tilt with the ground.
       if (rover.userData.animation) {
-        animateCharacter(rover, Math.hypot(p.vel.x, p.vel.z), dt);
+        animateCharacter(rover, Math.hypot(p.vel.x, p.vel.z), dt, p.working !== null);
         continue;
       }
       // Tilt with the slope: compare ground height in front/behind and left/right.
@@ -385,11 +398,46 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
     }
   }
 
+  // Mini task sites never move; they respawn somewhere new (maybe a new kind).
+  function syncTasks(s: GameState, time: number, focus: { x: number; z: number }) {
+    for (const site of s.taskSites) {
+      let view = tasks.get(site.id);
+      const wasActive = view ? view.active : site.active;
+      if (!view || view.kind !== site.kind) {
+        if (view) scene.remove(view.group);
+        const group = new THREE.Group();
+        const model = createModel(TASK_ASSET[site.kind]);
+        model.rotation.y = site.id; // any angle, so they don't all look the same
+        const badge = createBadge(site.kind);
+        badge.position.y = TASK_BADGE_HEIGHT;
+        const ring = createGroundRing(THEME.magnetRing, 0.94, 0.5, 20);
+        ring.scale.setScalar(BALANCE.tasks.workRadius);
+        ring.position.y = 0.4;
+        group.add(model, badge, ring);
+        scene.add(group);
+        view = { group, model, kind: site.kind, badge, active: wasActive };
+        tasks.set(site.id, view);
+      }
+      const far = Math.abs(site.pos.x - focus.x) > PICKUP_DRAW_DISTANCE || Math.abs(site.pos.z - focus.z) > PICKUP_DRAW_DISTANCE;
+      if (site.active && !wasActive) pops.push({ obj: view.model, age: 0 }); // respawned: pop in
+      view.active = site.active;
+      view.group.visible = site.active && !far;
+      if (!view.group.visible) continue;
+      view.group.position.set(site.pos.x, heightAt(site.pos.x, site.pos.z), site.pos.z);
+      // Shake a little while someone is working on it.
+      const shaking = site.workerId !== null;
+      view.model.rotation.z = shaking ? Math.sin(time * 40) * 0.04 : 0;
+      view.badge.position.y = TASK_BADGE_HEIGHT + Math.sin(time * 2.5 + site.id) * 0.3;
+      view.badge.scale.setScalar(BADGE_SIZE * TASK_BADGE_SCALE * (cameraMode === 'topDown' ? BADGE_TOP_VIEW_SCALE : 1));
+    }
+  }
+
   // When the local player grabs a pickup, its badge pops up over their head and fades.
   const grabPops: GrabPop[] = [];
   function spawnGrabPops(s: GameState, events: GameEvent[]) {
     for (const e of events) {
-      if (e.type !== 'PickupCollected' || e.playerId !== localPlayerId) continue;
+      // Grabbed a pickup, or finished a mini task: same "you got it" badge.
+      if ((e.type !== 'PickupCollected' && e.type !== 'TaskCompleted') || e.playerId !== localPlayerId) continue;
       const sprite = new THREE.Sprite(badgeMaterial(e.kind).clone());
       sprite.scale.setScalar(BADGE_SIZE * 1.2);
       scene.add(sprite);
@@ -541,6 +589,7 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
       syncRovers(s, dt);
       const me = findPlayer(s, localPlayerId);
       syncPickups(s, s.time, me ? me.pos : { x: 0, z: 0 });
+      syncTasks(s, s.time, me ? me.pos : { x: 0, z: 0 });
       updatePops(dt);
       for (const pop of grabPops) pop.age += dt;
       spawnGrabPops(s, events);

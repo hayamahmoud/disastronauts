@@ -4,7 +4,7 @@
 // Coordinates: gameplay works on the ground plane {x, z}. Height (y) comes
 // from the terrain grid. 1 unit = 1 Roblox stud. Y is up.
 
-import type { BotPersonality, BuildingKind, DisasterKind, FlareClass, PickupKind, PowerPriority, ResourceKind } from '../config/balance';
+import type { BotPersonality, BuildingKind, DisasterKind, FlareClass, PickupKind, PowerPriority, ResourceKind, TaskKind } from '../config/balance';
 import type { RngState } from './rng';
 
 export interface Vec2 {
@@ -49,6 +49,8 @@ export interface PlayerInput {
   powerPriority?: PowerPriority;
   // Optional one-off command: ask Earth for a supply drop.
   callSupplyDrop?: boolean;
+  // True while the work key (E) is HELD: works on a big pickup (mini task) you stand next to.
+  work?: boolean;
 }
 
 export type Cargo = Record<PickupKind, number>;
@@ -70,21 +72,24 @@ export interface PlayerState {
   stars: number; // stars earned from missions so far
   missionsDone: number;
   supplyCooldown: number; // seconds until another supply drop can be called
+  working: number | null; // id of the big pickup (mini task) you're working on right now
   bot: BotState | null; // null = a human; otherwise a computer rival's memory
 }
 
 // A computer rival's "brain". It walks around like a player would:
 //   wander   → nothing in sight, walk somewhere new
 //   seek     → walk to the best pickup it can see
+//   task     → walk to a big pickup and work on it (mini task)
 //   wreck    → walk to a wreck to absorb it
 //   home     → backpack full (or a disaster is coming): walk home to unload
 //   shelter  → stay home until the danger is over
-export type BotMode = 'wander' | 'seek' | 'wreck' | 'home' | 'shelter';
+export type BotMode = 'wander' | 'seek' | 'task' | 'wreck' | 'home' | 'shelter';
 
 export interface BotState {
   personality: BotPersonality;
   mode: BotMode;
   targetPickupId: number | null; // the pickup it's heading for (seek)
+  targetTaskId: number | null; // the big pickup it's heading for (task)
   targetWreckId: number | null; // the wreck it's heading for (wreck)
   wanderTo: Vec2 | null; // where it's walking (wander)
   thinkTimer: number; // seconds until it looks around again
@@ -144,6 +149,18 @@ export interface PickupState {
   // collected or when timeLeft runs out.
   temporary: boolean;
   timeLeft: number;
+}
+
+// A big pickup that needs a mini task (M4b): drill ice, fix a solar panel,
+// scoop regolith. The magnet can't pull it; you hold the work key next to it.
+export interface TaskSiteState {
+  id: number;
+  kind: TaskKind; // also the kind of item it gives you
+  pos: Vec2;
+  active: boolean; // false while waiting to respawn
+  respawnTimer: number;
+  progress: number; // seconds of work done so far (kept if you walk away)
+  workerId: string | null; // the player working on it right now
 }
 
 // A disaster that is happening right now.
@@ -224,6 +241,7 @@ export interface GameState {
   players: PlayerState[];
   bases: BaseState[];
   pickups: PickupState[];
+  taskSites: TaskSiteState[]; // big pickups for mini tasks
   disastersEnabled: boolean;
   disaster: ActiveDisaster | null;
   nextDisaster: PlannedDisaster | null;

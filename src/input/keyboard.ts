@@ -17,6 +17,7 @@ export interface KeyboardInput {
   getMove(): MoveVector;
   getTurnWalk(): TurnWalk;
   onKeyPress(code: string, handler: () => void): void;
+  isDown(code: string): boolean; // held right now (e.g. E to work on a mini task)
 }
 
 export function createKeyboardInput(target: Window = window): KeyboardInput {
@@ -53,6 +54,9 @@ export function createKeyboardInput(target: Window = window): KeyboardInput {
     },
     onKeyPress(code, handler) {
       handlers.set(code, handler);
+    },
+    isDown(code) {
+      return down.has(code);
     },
   };
 }

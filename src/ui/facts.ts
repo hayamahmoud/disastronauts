@@ -16,7 +16,10 @@ export type FactTrigger =
   | 'supplyDrop'
   | 'greenhouse'
   | 'crewSick'
-  | 'shieldMission';
+  | 'shieldMission'
+  | 'taskIce' // finished a mini task (M4b)
+  | 'taskSolar'
+  | 'taskRegolith';
 
 export interface Fact {
   id: string;
