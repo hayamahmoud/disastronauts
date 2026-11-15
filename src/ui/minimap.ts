@@ -27,9 +27,13 @@ const PICKUP_COLOR: Record<PickupKind, () => number> = {
 
 export function createMinimap(root: HTMLElement, localPlayerId: string, getYaw: () => number = () => 0): Minimap {
   const M = BALANCE.minimap;
-  const wrap = document.createElement('div');
+  const wrap = document.createElement('details');
+  wrap.open = !window.matchMedia('(max-width: 760px), (max-height: 500px)').matches;
+  const summary = document.createElement('summary');
+  summary.textContent = 'Map';
+  wrap.appendChild(summary);
   wrap.className = 'minimap';
-  wrap.title = 'Map: you are the arrow, 🏠 is your base. N points north.';
+  wrap.setAttribute('aria-label', 'Map');
   const canvas = document.createElement('canvas');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = canvas.height = Math.round(M.sizePx * dpr);

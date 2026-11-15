@@ -8,7 +8,7 @@ import { webShopItems, type CatalogItem, type ItemKind } from '../services/catal
 import type { BlockReason, WebMonetizationService } from '../services/MonetizationService';
 import { todayString, type ProfileService } from '../services/ProfileService';
 import { BALANCE } from '../config/balance';
-import { createIcon, el } from './components';
+import { el } from './components';
 
 export interface ShopDeps {
   profile: ProfileService;
@@ -17,14 +17,14 @@ export interface ShopDeps {
 }
 
 const SHELVES: Array<{ kind: ItemKind; title: string; note: string }> = [
-  { kind: 'upgrade', title: '🔧 Upgrades', note: 'Small boosts that last forever.' },
-  { kind: 'powerup', title: '⚡ Power-ups', note: 'Packed for your NEXT round only. Each one has a catch!' },
-  { kind: 'cosmetic', title: '🎨 Looks', note: 'Just for fun: they don’t change the game.' },
+  { kind: 'upgrade', title: 'Upgrades', note: 'Small boosts that last forever.' },
+  { kind: 'powerup', title: 'Power-ups', note: 'Packed for your NEXT round only. Each one has a catch!' },
+  { kind: 'cosmetic', title: 'Looks', note: 'Just for fun: they don’t change the game.' },
 ];
 
 const BLOCKED: Record<BlockReason, string> = {
   owned: 'Owned',
-  packed: 'Packed ✔',
+  packed: 'Packed',
   level: '', // filled in with the level number
   coins: 'Not enough coins',
   notOnWeb: 'Coming soon',
@@ -60,10 +60,10 @@ export function openShop(deps: ShopDeps): void {
     // Coins, level and the XP bar.
     const stats = el('div', 'shop-stats');
     const coins = el('span', 'shop-coins');
-    coins.append(createIcon('icon_coin'), el('b', '', ` ${p.coins}`), ' coins');
+    coins.append(el('b', '', String(p.coins)), ' coins');
     const lv = levelProgress(p.xp);
     const level = el('span', 'shop-level');
-    level.append(createIcon('icon_xp'), el('b', '', ` Level ${lv.level}`));
+    level.append(el('b', '', `Level ${lv.level}`));
     const bar = el('span', 'shop-xp-bar');
     const fill = el('span');
     fill.style.width = lv.needed ? `${Math.round((lv.into / lv.needed) * 100)}%` : '100%';
@@ -78,11 +78,15 @@ export function openShop(deps: ShopDeps): void {
     daily.type = 'button';
     const canClaim = profile.canClaimDaily(today);
     daily.disabled = !canClaim;
-    daily.append(createIcon('icon_gift'), el('span', '', canClaim ? ` Claim your daily gift: +${BALANCE.progression.dailyRewardCoins} coins!` : ' Daily gift claimed. Come back tomorrow!'));
+    daily.textContent = canClaim ? `Claim your daily gift: +${BALANCE.progression.dailyRewardCoins} coins` : 'Daily gift claimed. Come back tomorrow.';
     daily.addEventListener('click', () => { click(); profile.claimDaily(today); });
 
     const intro = el('p', 'shop-intro', 'Earn coins and XP by playing rounds. Better places and mission stars earn more!');
-    const parts: HTMLElement[] = [close, el('h2', '', '🛒 Shop'), stats, daily, intro];
+    const header = el('header', 'scroll-dialog-header');
+    const title = el('div', 'console-title');
+    title.append(el('h2', '', 'Outpost Shop'));
+    header.append(title, close);
+    const parts: HTMLElement[] = [header, stats, daily, intro];
     const items = webShopItems();
     for (const shelf of SHELVES) {
       parts.push(el('h3', 'shop-shelf', shelf.title), el('p', 'shop-note', shelf.note));
@@ -110,15 +114,15 @@ export function openShop(deps: ShopDeps): void {
       // A cosmetic you own: wear it or take it off.
       const slot = item.slot;
       const wearing = p.equipped[slot] === item.id;
-      button.textContent = wearing ? 'Wearing ✔ (take off)' : 'Wear';
+      button.textContent = wearing ? 'Wearing  (take off)' : 'Wear';
       button.classList.toggle('is-on', wearing);
       button.addEventListener('click', () => { click(); profile.equip(slot, wearing ? null : item.id); });
     } else {
       const reason = shop.blockReason(item);
       const price = item.coinPrice ?? 0;
-      if (reason === null) button.textContent = price === 0 ? 'Claim (free!)' : `Buy: 🪙 ${price}`;
+      if (reason === null) button.textContent = price === 0 ? 'Claim (free!)' : `Buy: ${price} coins`;
       else if (reason === 'level') button.textContent = `🔒 Level ${item.unlockLevel}`;
-      else if (reason === 'coins') button.textContent = `🪙 ${price} (need ${price - p.coins} more)`;
+      else if (reason === 'coins') button.textContent = `${price} coins (need ${price - p.coins} more)`;
       else button.textContent = BLOCKED[reason];
       button.disabled = reason !== null;
       button.classList.toggle('is-owned', reason === 'owned' || reason === 'packed');

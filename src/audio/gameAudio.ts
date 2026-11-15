@@ -34,7 +34,6 @@ export function createGameAudio(localPlayerId: string) {
     toggle.textContent = muted ? '♪ Sound off' : '♪ Sound on';
     toggle.setAttribute('aria-label', muted ? 'Unmute music and sound effects' : 'Mute music and sound effects');
     toggle.setAttribute('aria-pressed', String(muted));
-    toggle.title = 'Music starts after your first click or key press.';
   }
   updateToggle();
 

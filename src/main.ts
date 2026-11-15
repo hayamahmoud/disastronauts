@@ -115,9 +115,13 @@ function startRound(seed: number) {
   });
   view = createGameView(document.getElementById('game')!, state, LOCAL_PLAYER, shadows);
   hud = createHud(ui, LOCAL_PLAYER, { flares: flareSet, realMap: !state.terrain.isPlaceholder }, togglePowerPriority, callEarth, solarBoost);
-  minimap = createMinimap(ui, LOCAL_PLAYER, () => view!.getMapYaw());
-  scoreboard = createScoreboard(ui, LOCAL_PLAYER);
-  lobby = createLobby(ui, state, LOCAL_PLAYER);
+  // Keep map and standings in one flow so expanding either never overlaps them.
+  const mapDock = document.createElement('div');
+  mapDock.className = 'hud-map-dock';
+  ui.appendChild(mapDock);
+  minimap = createMinimap(mapDock, LOCAL_PLAYER, () => view!.getMapYaw());
+  scoreboard = createScoreboard(mapDock, LOCAL_PLAYER);
+  lobby = createLobby(ui, state);
   factPopup = createFactPopup(ui, LOCAL_PLAYER);
   podium = createPodium(
     ui,
@@ -133,11 +137,11 @@ function startRound(seed: number) {
   stick = createTouchStick(ui);
   const viewButton = createButton(ui, () => { audio.click(); view?.toggleCameraMode(); });
   viewButton.classList.add('touch-view');
-  viewButton.append(el('span', '', '🎥 View'));
+  viewButton.append(el('span', '', 'View'));
+  viewButton.setAttribute('aria-label', 'Change camera view');
   viewButton.title = 'Switch between the behind view and the top view.';
   // First time playing (in this browser): a short step-by-step tutorial.
   tutorial = tutorialDone() ? null : createTutorial(ui, LOCAL_PLAYER, () => audio.chime());
-  if (tutorial) hud.skipOpening();
   combo = createCombo();
   survivedDisaster = false;
   pendingPriority = undefined;

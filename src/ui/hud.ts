@@ -59,8 +59,6 @@ export interface Hud {
   isWorkHeld(): boolean;
   // Show "Combo ×N!" (grabbing pickups quickly one after another).
   showCombo(count: number): void;
-  // Don't show the opening tip (the tutorial explains it step by step instead).
-  skipOpening(): void;
 }
 
 // Mini tasks in kid words: what you do, what it looks like while you do it,
@@ -104,9 +102,10 @@ export function createHud(
   root.appendChild(el('div', 'hud-logo', 'Disastronauts'));
 
   // --- Left: the mission card ---
-  const mission = el('div', 'hud-mission is-empty');
-  mission.title = 'Your mission. Finish it fast for 3 stars!';
-  const missionHead = el('div', 'hud-mission-head');
+  const mission = el('details', 'hud-mission is-empty');
+  mission.open = !window.matchMedia('(max-width: 760px), (max-height: 500px)').matches;
+  mission.setAttribute('aria-description', 'Finish the mission quickly to earn up to 3 stars.');
+  const missionHead = el('summary', 'hud-mission-head');
   const missionText = el('div', 'hud-mission-text');
   const missionProgress = el('div', 'hud-mission-progress');
   const missionTime = el('div', 'hud-mission-time');
@@ -141,7 +140,6 @@ export function createHud(
 
   // --- Top right: which sol it is, and a dot moving across day and night ---
   const sol = el('div', 'hud-sol');
-  sol.title = 'A sol is one day on Mars: 24 hours 39 minutes. Here it lasts one minute.';
   const solIcon = el('span', 'hud-sol-icon');
   const solText = el('span');
   const solTrack = el('span', 'hud-sol-track');
@@ -217,22 +215,14 @@ export function createHud(
   priorityButton.classList.add('hud-priority');
   priorityButton.title = 'When Power runs low, this building stays on and the other switches off. (Key: P)';
 
-  // --- Bottom right, above Call Earth: where the space weather comes from ---
-  // "LIVE" only when today's flares really downloaded; otherwise the archived dates.
-  const dataBadge = createBadge(root, '', {});
-  dataBadge.classList.add('hud-data');
-  const f = data.flares;
-  if (f.live) {
-    dataBadge.classList.add('is-live');
-    dataBadge.append(el('span', 'data-live-dot'), el('b', '', 'LIVE'), ` NASA space weather (last ${BALANCE.liveData.donkiDays} days)`);
-  } else {
-    dataBadge.textContent = `Archived NASA flares from ${niceDate(f.startDate)} to ${niceDate(f.endDate)}`;
+  // Only live data needs an in-game indicator; archived sources remain in Real NASA Data.
+  if (data.flares.live) {
+    const dataBadge = createBadge(root, '', {});
+    dataBadge.classList.add('hud-data', 'is-live');
+    dataBadge.append(el('span', 'data-live-dot'), el('b', '', 'LIVE'), ' NASA space weather');
   }
-  if (!data.realMap) dataBadge.append(el('br'), 'Placeholder map: the real Jezero map did not load');
 
   const message = createMessage(root);
-  // Same icons as the badges over pickups and the HUD chips.
-  const OPENING = 'Grab ⚡ 🫁 🛡️ to fill your bars, 🔨 to build. Then walk home!';
 
   // Only rebuild things when they actually change.
   let lastSol = '';
@@ -245,13 +235,9 @@ export function createHud(
   let lastOverlay = '';
   let lastTask = '';
   let lastPowerups = '';
-  let shownOpening = false;
 
   return {
     isWorkHeld: () => workHeld,
-    skipOpening: () => {
-      shownOpening = true;
-    },
     showCombo(count) {
       if (count < BALANCE.juice.comboShowFrom) return;
       combo.textContent = `Combo ×${count}!`;
@@ -265,11 +251,6 @@ export function createHud(
     update(state, events) {
       const me = findPlayer(state, localPlayerId);
       if (!me) return;
-      // Untimed games have no lobby, so show the opening tip on the first frame.
-      if (!shownOpening && state.round.phase === 'playing') {
-        shownOpening = true;
-        message.show(OPENING, 6);
-      }
       const base = findBase(state, me.baseId);
       const cap = cargoCapacity(state, me);
       const full = me.cargoCount >= cap;
@@ -305,7 +286,7 @@ export function createHud(
       if (solKey !== lastSol) {
         lastSol = solKey;
         solIcon.replaceChildren(createIcon(night ? 'icon_night' : 'icon_day'));
-        setTermText(solText, `Sol ${solNumber(state.time)}`);
+        solText.textContent = `Sol ${solNumber(state.time)}`;
       }
       solDot.style.left = `${(timeOfSol(state.time) * 100).toFixed(1)}%`;
 
@@ -417,13 +398,12 @@ export function createHud(
     mission.classList.toggle('is-empty', !m);
     missionStars.replaceChildren(createIcon('icon_star'), el('span', '', ` ${me.stars} ${me.stars === 1 ? 'star' : 'stars'}`));
     if (!m) {
-      missionHead.replaceChildren(createIcon('icon_mission'), el('span', '', ' Mission'));
+      missionHead.textContent = 'Mission';
       missionText.textContent = 'New mission coming…';
       missionProgress.textContent = '';
       return;
     }
-    const icon: UiIconId = m.disaster ? DISASTER[m.disaster].icon : 'icon_mission';
-    missionHead.replaceChildren(createIcon(icon), el('span', '', m.disaster ? ' Get ready!' : ' Mission'));
+    missionHead.textContent = m.disaster ? 'Get ready!' : 'Mission';
     setTermText(missionText, missionGoal(m));
     const goalIcon: UiIconId = m.kind === 'storePower' ? 'icon_power' : PICKUP_ICON[MISSION_PICKUP[m.kind]];
     missionProgress.replaceChildren(createIcon(goalIcon), el('span', '', ` ${Math.min(m.progress, m.target)} / ${m.target}`));
