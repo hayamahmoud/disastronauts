@@ -169,7 +169,7 @@ export function createMinimap(root: HTMLElement, localPlayerId: string, getYaw: 
           ctx.arc(hx, hy, depositRadius(home) * scale, 0, Math.PI * 2);
           ctx.stroke();
         }
-        ctx.fillStyle = 'rgba(30, 20, 40, 0.75)';
+        ctx.fillStyle = css(THEME.textOutline);
         ctx.beginPath();
         ctx.arc(hx, hy, 10, 0, Math.PI * 2);
         ctx.fill();
@@ -184,7 +184,7 @@ export function createMinimap(root: HTMLElement, localPlayerId: string, getYaw: 
       ctx.translate(r, r);
       ctx.rotate(yaw - me.heading); // heading 0 = facing north
       ctx.fillStyle = css(THEME.team[me.colorIndex % THEME.team.length]);
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = css(THEME.badgeRim);
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, -8);
@@ -201,12 +201,12 @@ export function createMinimap(root: HTMLElement, localPlayerId: string, getYaw: 
       const nl = Math.hypot(n.x - r, n.y - r) || 1;
       const nx = r + ((n.x - r) / nl) * (r - 9);
       const ny = r + ((n.y - r) / nl) * (r - 9);
-      ctx.fillStyle = 'rgba(30, 20, 40, 0.85)';
+      ctx.fillStyle = css(THEME.textOutline);
       ctx.beginPath();
       ctx.arc(nx, ny, 8, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.fillStyle = css(THEME.badgeRim);
+      ctx.font = '700 11px Fredoka, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('N', nx, ny + 0.5);

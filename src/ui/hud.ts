@@ -26,6 +26,7 @@ import { findTaskSite, hasRoomFor, nearestTaskSite, taskProgress } from '../core
 import { canAbsorb } from '../core/wrecks';
 import { niceDate, type FlareSet } from '../services/DataService';
 import { createBadge, createButton, createChip, createIcon, createMessage, el, levelFor } from './components';
+import { setTermText } from './glossary';
 
 // Disaster names and one-line "what it does", in kid words.
 const DISASTER: Record<DisasterKind, { icon: UiIconId; name: string; does: string; prepare: string }> = {
@@ -56,6 +57,10 @@ export interface Hud {
   update(state: GameState, events: GameEvent[]): void;
   // True while the work button is pressed with a mouse or finger (touch screens).
   isWorkHeld(): boolean;
+  // Show "Combo ×N!" (grabbing pickups quickly one after another).
+  showCombo(count: number): void;
+  // Don't show the opening tip (the tutorial explains it step by step instead).
+  skipOpening(): void;
 }
 
 // Mini tasks in kid words: what you do, what it looks like while you do it,
@@ -174,6 +179,12 @@ export function createHud(
   taskBar.appendChild(taskFill);
   task.append(taskIcon, taskText, taskBar);
   root.appendChild(task);
+
+  // --- Under the crew: "Combo ×5!" while you grab pickups quickly in a row ---
+  const combo = el('div', 'hud-combo is-hidden');
+  root.appendChild(combo);
+  let comboTimer = 0;
+
   let workHeld = false;
   task.addEventListener('pointerdown', (e) => {
     workHeld = true;
@@ -238,6 +249,18 @@ export function createHud(
 
   return {
     isWorkHeld: () => workHeld,
+    skipOpening: () => {
+      shownOpening = true;
+    },
+    showCombo(count) {
+      if (count < BALANCE.juice.comboShowFrom) return;
+      combo.textContent = `Combo ×${count}!`;
+      combo.classList.remove('is-hidden', 'is-pop');
+      void combo.offsetWidth; // restart the pop animation
+      combo.classList.add('is-pop');
+      window.clearTimeout(comboTimer);
+      comboTimer = window.setTimeout(() => combo.classList.add('is-hidden'), BALANCE.juice.comboWindow * 1000);
+    },
 
     update(state, events) {
       const me = findPlayer(state, localPlayerId);
@@ -264,7 +287,9 @@ export function createHud(
         const t = tipFor(state, me, base);
         if ((t?.text ?? '') !== lastTip) {
           lastTip = t?.text ?? '';
-          tip.replaceChildren(...(t ? [createIcon(t.icon), el('span', '', ' ' + t.text)] : []));
+          const words = el('span');
+          if (t) setTermText(words, ' ' + t.text); // "regolith" etc. get a glossary bubble
+          tip.replaceChildren(...(t ? [createIcon(t.icon), words] : []));
         }
 
         if (base.powerPriority !== lastPriority) {
@@ -280,7 +305,7 @@ export function createHud(
       if (solKey !== lastSol) {
         lastSol = solKey;
         solIcon.replaceChildren(createIcon(night ? 'icon_night' : 'icon_day'));
-        solText.textContent = `Sol ${solNumber(state.time)}`;
+        setTermText(solText, `Sol ${solNumber(state.time)}`);
       }
       solDot.style.left = `${(timeOfSol(state.time) * 100).toFixed(1)}%`;
 
@@ -399,7 +424,7 @@ export function createHud(
     }
     const icon: UiIconId = m.disaster ? DISASTER[m.disaster].icon : 'icon_mission';
     missionHead.replaceChildren(createIcon(icon), el('span', '', m.disaster ? ' Get ready!' : ' Mission'));
-    missionText.textContent = missionGoal(m);
+    setTermText(missionText, missionGoal(m));
     const goalIcon: UiIconId = m.kind === 'storePower' ? 'icon_power' : PICKUP_ICON[MISSION_PICKUP[m.kind]];
     missionProgress.replaceChildren(createIcon(goalIcon), el('span', '', ` ${Math.min(m.progress, m.target)} / ${m.target}`));
   }
@@ -438,7 +463,7 @@ export function createHud(
     alert.classList.toggle('is-active', !!now);
     if (!title) return;
     alertTitle.replaceChildren(createIcon(title[0]), el('span', '', ' ' + title[1]));
-    alertText.textContent = text;
+    setTermText(alertText, text);
   }
 
   // The mini task you're standing at: "Hold E to drill the ice" and its work bar.

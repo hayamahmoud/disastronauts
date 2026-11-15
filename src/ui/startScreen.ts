@@ -1,5 +1,6 @@
 import type { GameAudio } from '../audio/gameAudio';
 import { openDataScreen } from './dataScreen';
+import { setTutorialDone, tutorialDone } from './tutorial';
 
 // The Shop button on the menu: opens the shop and shows your coins.
 export interface MenuShop {
@@ -39,7 +40,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
       <button class="settings-close" aria-label="Close settings">×</button>
       <h2>Mission settings</h2>
       <p><strong>Players</strong> includes you and up to three computer rivals. After a 10-second countdown you get 5 minutes: the highest <strong>Colony Score</strong> wins!</p>
-      <p>Move with <strong>WASD / arrow keys</strong>. Nearby supplies collect automatically. Return to your base to unload.</p>
+      <p>Move with <strong>WASD / arrow keys</strong> (on a tablet or phone: the <strong>joystick</strong>). Nearby supplies collect automatically. Return to your base to unload.</p>
       <p><strong>C</strong> changes the camera. <strong>P</strong> changes power priority. <strong>Space</strong> calls Earth for a supply drop. <strong>E</strong> (hold) does a mini task. <strong>B</strong> uses a Solar Boost.</p>
       <p>Every round earns <strong>coins</strong> and <strong>XP</strong>. Spend coins in the <strong>🛒 Shop</strong> on upgrades, power-ups and new looks. No real money, ever!</p>
       <fieldset class="audio-settings">
@@ -52,6 +53,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
         <p class="audio-settings-note">Changes save automatically. Set a slider to 0 to turn it off.</p>
       </fieldset>
       <label><input type="checkbox" class="start-shadows" checked> Soft shadows</label>
+      <label><input type="checkbox" class="start-tutorial"> Show the tutorial next game</label>
       <button class="settings-done">Ready!</button>
     </dialog>`;
   document.body.appendChild(screen);
@@ -82,7 +84,10 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
   effectsSlider.oninput = () => audio.setVolume('effects', Number(effectsSlider.value) / 100);
   effectsSlider.onchange = () => audio.click();
   mute.onchange = () => audio.setMuted(mute.checked);
-  click('.start-settings', () => { syncAudio(); dialog.showModal(); });
+  // Tick to see the step-by-step tutorial again (it normally only runs once).
+  const tutorialBox = screen.querySelector<HTMLInputElement>('.start-tutorial')!;
+  tutorialBox.onchange = () => setTutorialDone(!tutorialBox.checked);
+  click('.start-settings', () => { syncAudio(); tutorialBox.checked = !tutorialDone(); dialog.showModal(); });
   click('.start-data:not(.start-shop)', () => openDataScreen({ flares: null, realMap: null }));
   click('.start-shop', shop.open);
   const coins = screen.querySelector<HTMLSpanElement>('.start-coins')!;
@@ -120,6 +125,10 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
     // Also finish when animations are disabled or the tab was backgrounded.
     const fallback = window.setTimeout(finish, reducedMotion ? 250 : 1450);
   });
+  // Dev only: ?autostart=1 skips the menu (handy for testing and screenshots).
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('autostart') === '1') {
+    window.setTimeout(() => launch.click(), 50);
+  }
   return {
     shadows: () => screen.querySelector<HTMLInputElement>('.start-shadows')!.checked,
   };

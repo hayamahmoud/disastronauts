@@ -78,6 +78,11 @@ export const THEME = {
   cosmeticMint: 0x7fe0c4,
   cosmeticPink: 0xff7ab8,
   cosmeticSky: 0x9fd8f4,
+
+  // Juice (M7): particle puffs and floating "+5 ⚡" numbers.
+  textOutline: 0x2b2140, // plum outline around floating numbers (same plum as the HUD pills)
+  dustPuff: 0xe8b07c, // dust kicked up when a building lands or a capsule hits the ground
+  sparkle: 0xfff4ea, // cream sparkles mixed into bigger bursts
 } as const;
 
 // How 3D materials are drawn. Part of the theme so a visual direction can

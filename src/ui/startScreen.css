@@ -152,24 +152,29 @@
   border-left: 2cqw solid #241a1a;
   border-radius: 3px;
 }
+/* Menu dialogs (settings, Real NASA Data, Shop): a plum card with an orange
+   border and cream text, like the in-game HUD (M7 art pass). */
 .start-help {
   width: min(460px, 90vw);
   max-height: 85dvh;
   overflow: auto;
   padding: 28px;
-  border: 2px solid #bc9276;
+  border: 3px solid var(--color-orange);
   border-radius: 22px;
-  background: #2c2332;
-  color: #f6d3af;
-  font: 15px/1.65 'Trebuchet MS', sans-serif;
-  box-shadow: 0 20px 70px #0008;
+  background: var(--color-plum-solid);
+  color: var(--color-cream);
+  font: 500 16px/1.6 var(--font-main);
+  box-shadow: 0 6px 0 var(--color-shadow), 0 20px 70px var(--color-shadow);
 }
-.start-help::backdrop { background: #15111cbb; backdrop-filter: blur(6px); }
-.start-help h2 { margin: 0 30px 15px 0; font-size: 26px; }
-.start-help p { color: #dec3b0; }
-.settings-close { position: absolute; right: 18px; top: 14px; background: transparent; border: 0; color: #f6d3af; font-size: 30px; cursor: pointer; }
-.settings-done { display: block; margin-top: 22px; width: 100%; border: 0; border-radius: 12px; padding: 12px; background: #f1bd8c; color: #30212a; font: bold 16px 'Trebuchet MS', sans-serif; cursor: pointer; }
-.start-help input { accent-color: #efa366; }
+.start-help::backdrop { background: var(--color-dim); backdrop-filter: blur(6px); }
+.start-help h2 { margin: 0 30px 15px 0; font-size: 28px; font-weight: 700; color: var(--color-orange); }
+.start-help p { color: var(--color-soft-text); }
+.start-help strong { color: var(--color-cream); font-weight: 600; }
+.start-help label { display: block; margin-top: 8px; }
+.settings-close { position: absolute; right: 18px; top: 14px; background: transparent; border: 0; color: var(--color-cream); font: 600 30px var(--font-main); cursor: pointer; }
+.settings-done { display: block; margin-top: 22px; width: 100%; border: 0; border-radius: var(--radius-pill); padding: 12px; background: var(--color-orange); color: var(--color-cream); font: 700 18px var(--font-main); box-shadow: 0 4px 0 var(--color-logo-shadow); cursor: pointer; }
+.settings-done:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--color-logo-shadow); }
+.start-help input { accent-color: var(--color-orange); }
 
 /* Always available in both the dashboard and game. */
 .sound-toggle {
@@ -177,29 +182,30 @@
   z-index: 20;
   right: 16px;
   bottom: 16px;
-  padding: 9px 13px;
-  border: 1px solid #bc927688;
-  border-radius: 12px;
-  background: #2c2332e6;
-  color: #f6d3af;
-  font: bold 12px 'Trebuchet MS', sans-serif;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-plum);
+  color: var(--color-cream);
+  font: 600 14px var(--font-main);
+  box-shadow: 0 4px 0 var(--color-shadow);
   cursor: pointer;
   touch-action: manipulation;
 }
-.sound-toggle:hover { background: #53363d; }
-.sound-toggle:focus-visible { outline: 3px solid #ffe1ae; outline-offset: 3px; }
+.sound-toggle:hover { background: var(--color-plum-solid); }
+.sound-toggle:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
 body:has(#game canvas) .sound-toggle { bottom: auto; top: 16px; right: 140px; }
 
 .audio-settings {
   margin: 22px 0;
   padding: 16px;
-  border: 1px solid #bc927655;
-  border-radius: 14px;
+  border: 2px solid var(--color-line);
+  border-radius: var(--radius-m);
 }
-.audio-settings legend { padding: 0 8px; font-weight: bold; color: #f6d3af; }
+.audio-settings legend { padding: 0 8px; font-weight: 700; color: var(--color-orange); }
 .audio-mute { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .audio-slider { display: flex; justify-content: space-between; gap: 16px; margin-top: 12px; }
-.audio-slider output { color: #f1bd8c; font-variant-numeric: tabular-nums; }
+.audio-slider output { color: var(--color-orange); font-variant-numeric: tabular-nums; }
 .settings-volume { display: block; width: 100%; height: 28px; margin: 4px 0 0; cursor: pointer; touch-action: pan-y; }
-.audio-settings .audio-settings-note { margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: #c8ab99; }
-.settings-volume:focus-visible { outline: 2px solid #ffe1ae; outline-offset: 3px; border-radius: 5px; }
+.audio-settings .audio-settings-note { margin: 12px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-faint-text); }
+.settings-volume:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; border-radius: 5px; }

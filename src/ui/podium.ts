@@ -9,6 +9,7 @@ import type { GameState, Standing } from '../core/state';
 import { photoForRound } from '../services/DataService';
 import { createIcon, el } from './components';
 import { factForRound } from './facts';
+import { termify } from './glossary';
 import { teamCss } from './theme';
 
 // What this round earned you (filled in by main.ts when the round ends).
@@ -136,7 +137,9 @@ export function createPodium(
     link.href = fact.url;
     link.target = '_blank';
     link.rel = 'noopener';
-    factBox.append(head, el('div', 'podium-fact-text', fact.text), link);
+    const factText = el('div', 'podium-fact-text');
+    factText.append(...termify(fact.text));
+    factBox.append(head, factText, link);
     card.appendChild(factBox);
 
     // Buttons (in the card's flow, not pinned to a screen corner).

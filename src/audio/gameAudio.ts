@@ -1,3 +1,4 @@
+import { BALANCE } from '../config/balance';
 import type { GameEvent } from '../core/events';
 
 // Original synthesized audio: no downloads, external music, or simulation changes.
@@ -181,7 +182,15 @@ export function createGameAudio(localPlayerId: string) {
       return () => { listeners.delete(listener); };
     },
     enterGame() { inGame = true; },
-    update(events: GameEvent[], localBaseId: string) {
+    // A friendly two-note "ding" (the tutorial plays it when you finish a step).
+    chime() {
+      if (!context || context.state !== 'running' || muted) return;
+      const now = context.currentTime;
+      [784, 1175].forEach((note, i) => tone(note, now + i * 0.1, 0.3, 0.06, 'triangle'));
+    },
+    // `combo` = how many pickups in a row you've grabbed quickly (see ui/combo.ts):
+    // each one in a row plays a slightly higher note.
+    update(events: GameEvent[], localBaseId: string, combo = 1) {
       if (!context || context.state !== 'running' || muted) return;
       const now = context.currentTime;
       for (const event of events) {
@@ -215,7 +224,9 @@ export function createGameAudio(localPlayerId: string) {
           : 'baseId' in event && event.baseId === localBaseId;
         if (!mine) continue;
         if (event.type === 'PickupCollected' && now - lastPickup > 0.09) {
-          tone(660, now, 0.12, 0.065, 'sine', effects, 990); lastPickup = now;
+          const J = BALANCE.juice;
+          const rise = Math.pow(2, (Math.min(combo, J.comboPitchMax) - 1) * J.comboPitchStep);
+          tone(660 * rise, now, 0.12, 0.065, 'sine', effects, 990 * rise); lastPickup = now;
         } else if (event.type === 'TaskStarted') {
           tone(140, now, 0.25, 0.05, 'sawtooth', effects, 190); // tool whirrs to life
         } else if (event.type === 'TaskCompleted') {
