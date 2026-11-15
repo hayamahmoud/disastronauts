@@ -17,6 +17,7 @@ import { createRound, updateLobby, updateRoundTimer } from './round';
 import type { BaseState, FlareRecord, GameState, PlayerInput, PlayerState, TerrainGrid } from './state';
 import { emptyCargo, findBase } from './state';
 import { requestSupplyDrop, rollLightMinutes, updateSupplyDrops } from './supplyDrop';
+import { holdStill, spawnInitialTaskSites, updateTaskSites, updateWorking } from './tasks';
 import { generatePlaceholderTerrain } from './terrain';
 import { pickBaseSpawn, updateWrecks } from './wrecks';
 
@@ -50,6 +51,7 @@ export function createGame(setup: GameSetup): GameState {
     players: [],
     bases: [],
     pickups: [],
+    taskSites: [],
     disastersEnabled: false,
     disaster: null,
     nextDisaster: null,
@@ -100,6 +102,7 @@ export function createGame(setup: GameSetup): GameState {
       stars: 0,
       missionsDone: 0,
       supplyCooldown: 0,
+      working: null,
       bot: ps.bot ? createBotState(ps.bot) : null,
     };
     state.bases.push(base);
@@ -111,6 +114,7 @@ export function createGame(setup: GameSetup): GameState {
   // Each game starts the flare replay at a different (seeded) point in the list.
   if (state.flares.length > 0) state.nextFlareIndex = Math.floor(rngNext(state.rng) * state.flares.length);
   setupDisasters(state, setup.disasters ?? true);
+  spawnInitialTaskSites(state); // big pickups for mini tasks (M4b)
   return state;
 }
 
@@ -130,10 +134,13 @@ export function step(state: GameState, inputs: PlayerInput[], dt: number): GameE
   for (const player of state.players) {
     // Bots decide their own input here, the same shape a human's input has.
     const input = player.bot ? botInput(state, player, dt) : findInput(inputs, player.id);
-    moveRover(player, input, state.terrain, dt, walkSpeedFactor(state));
+    // Holding the work key next to a big pickup: stand still and work on it.
+    if (updateWorking(state, player, input, events)) holdStill(player, state);
+    else moveRover(player, input, state.terrain, dt, walkSpeedFactor(state));
     applyCommands(state, player, input, events);
   }
   updateDisasters(state, events);
+  updateTaskSites(state, dt, events);
   updatePickups(state, dt, events);
   updateDeposits(state, events);
   updateSupplyDrops(state, dt, events);

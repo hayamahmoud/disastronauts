@@ -8,7 +8,7 @@
 // Conventions (see docs/ART_SPEC.md): 1 unit = 1 Roblox stud, Y is up,
 // models face -Z ("forward"), pivot at the bottom center.
 
-import type { BuildingKind, PickupKind } from '../config/balance';
+import type { BuildingKind, PickupKind, TaskKind } from '../config/balance';
 import type { ThemeColorKey } from '../ui/theme';
 import { p, pair } from './parts';
 
@@ -61,6 +61,9 @@ export type AssetId =
   | 'pickup_ice'
   | 'pickup_regolith'
   | 'pickup_solar'
+  | 'task_ice'
+  | 'task_regolith'
+  | 'task_solar'
   | 'wreck'
   | 'supply_drop';
 
@@ -222,6 +225,54 @@ export const ASSETS: Record<AssetId, AssetEntry> = {
       p('box', [2.0, 0.2, 1.3], [0, 0.52, 0], 'pickupSolar', { rot: [15, 20, -10], shiny: true }),
     ],
   },
+  // Mini task sites (M4b): BIG pickups, too heavy for the magnet. Hold E next to one.
+  // An ice deposit poking out of a frosty mound, with a little drill rig beside it.
+  task_ice: {
+    scale: 1,
+    rotationYOffset: 0,
+    placeholder: [
+      p('rock', [5, 1.4, 4.4], [0, 0.5, 0], 'terrainHigh'),
+      p('crystal', [1.8, 3.4, 1.8], [0.4, 1.9, 0.2], 'pickupIce', { glow: true, shiny: true }),
+      p('crystal', [1.3, 2.4, 1.3], [-1.2, 1.4, 0.8], 'pickupIce', { rot: [0, 0, 20], glow: true, shiny: true }),
+      p('crystal', [1.1, 2.0, 1.1], [1.8, 1.2, -0.8], 'pickupIce', { rot: [0, 0, -25], glow: true, shiny: true }),
+      p('crystal', [0.9, 1.6, 0.9], [-0.4, 1.1, -1.4], 'pickupIce', { rot: [-20, 0, 0], glow: true, shiny: true }),
+      // Drill rig: three legs, a motor box and the drill bit pointing down.
+      p('cylinder', [0.2, 4.2, 0.2], [-3.3, 2, 0.6], 'hullDark', { rot: [-10, 0, -15] }),
+      p('cylinder', [0.2, 4.2, 0.2], [-2.1, 2, 0.6], 'hullDark', { rot: [-10, 0, 15] }),
+      p('cylinder', [0.2, 4.2, 0.2], [-2.7, 2, -0.8], 'hullDark', { rot: [20, 0, 0] }),
+      p('roundedBox', [1.1, 1, 1.1], [-2.7, 4.1, 0], 'accent'),
+      p('cone', [0.5, 1.8, 0.5], [-2.7, 2.8, 0], 'hullDark', { rot: [180, 0, 0] }),
+    ],
+  },
+  // A big soil pile with a shovel stuck in it and a bucket to fill.
+  task_regolith: {
+    scale: 1,
+    rotationYOffset: 0,
+    placeholder: [
+      p('rock', [5, 2.4, 4.4], [0, 1, 0], 'pickupRegolith'),
+      p('rock', [3, 1.6, 2.8], [1.8, 0.7, 1.2], 'terrainLow'),
+      p('rock', [2, 1.2, 2], [-2, 0.5, -1], 'terrainMid'),
+      p('cylinder', [0.2, 3, 0.2], [0.7, 3.4, 0.2], 'hullDark', { rot: [0, 0, -20] }),
+      p('roundedBox', [0.9, 1.1, 0.15], [0.2, 2.1, 0.2], 'accent', { rot: [0, 0, -20] }),
+      p('cylinder', [1.3, 1.2, 1.3], [-2.8, 0.6, 1.8], 'accent'),
+      p('cylinder', [1.0, 0.2, 1.0], [-2.8, 1.15, 1.8], 'pickupRegolith'),
+    ],
+  },
+  // A big solar panel that fell over on its post, with a cracked piece on the
+  // ground and a red light that says "broken".
+  task_solar: {
+    scale: 1,
+    rotationYOffset: 0,
+    placeholder: [
+      p('rock', [1.4, 0.6, 1.4], [0, 0.2, 0], 'terrainMid'),
+      p('cylinder', [0.35, 3, 0.35], [0, 1.5, 0], 'hullDark'),
+      p('box', [5, 0.25, 3.4], [0.8, 2.7, 0], 'hullDark', { rot: [0, 0, -28] }),
+      p('box', [4.7, 0.3, 3.1], [0.8, 2.72, 0], 'pickupSolar', { rot: [0, 0, -28], shiny: true }),
+      p('box', [2.4, 0.2, 1.8], [-2.4, 0.2, 1.6], 'solarCell', { rot: [6, 30, 4], shiny: true }),
+      p('roundedBox', [0.9, 0.6, 0.6], [1.8, 0.3, 2], 'accent'),
+      p('sphere', [0.55, 0.55, 0.55], [0, 3.3, 0], 'noPowerMarker', { glow: true }),
+    ],
+  },
   // What's left of a base that lost its crew: a tipped-over, scorched lander
   // with scattered panels. 'team' parts keep the old owner's color.
   wreck: {
@@ -261,6 +312,12 @@ export const PICKUP_ASSET: Record<PickupKind, AssetId> = {
   ice: 'pickup_ice',
   regolith: 'pickup_regolith',
   solar: 'pickup_solar',
+};
+
+export const TASK_ASSET: Record<TaskKind, AssetId> = {
+  ice: 'task_ice',
+  regolith: 'task_regolith',
+  solar: 'task_solar',
 };
 
 export const BUILDING_ASSET: Record<BuildingKind, AssetId> = {

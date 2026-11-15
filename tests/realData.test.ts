@@ -191,7 +191,7 @@ describe('rover photos', () => {
 // --- Facts ---
 
 describe('facts', () => {
-  const TRIGGERS: FactTrigger[] = ['roundStart', 'roundEnd', 'solarFlare', 'dustStorm', 'coldNight', 'supplyDrop', 'greenhouse', 'crewSick', 'shieldMission'];
+  const TRIGGERS: FactTrigger[] = ['roundStart', 'roundEnd', 'solarFlare', 'dustStorm', 'coldNight', 'supplyDrop', 'greenhouse', 'crewSick', 'shieldMission', 'taskIce', 'taskSolar', 'taskRegolith'];
 
   it('every fact has text, a NASA source and a link, and unique ids', () => {
     const ids = new Set<string>();

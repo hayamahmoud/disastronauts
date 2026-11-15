@@ -2,12 +2,15 @@
 // these (pop effects, numbers, messages) without changing the game state.
 // On Roblox these become RemoteEvents fired from the server to clients.
 
-import type { BuildingKind, DisasterKind, FlareClass, PickupKind } from '../config/balance';
+import type { BuildingKind, DisasterKind, FlareClass, PickupKind, TaskKind } from '../config/balance';
 import type { Cargo, MissionKind, Standing, Vec2 } from './state';
 
 export type GameEvent =
   | { type: 'PickupCollected'; playerId: string; pickupId: number; kind: PickupKind }
   | { type: 'CargoFull'; playerId: string }
+  // Mini tasks (big pickups you hold the work key on)
+  | { type: 'TaskStarted'; playerId: string; siteId: number; kind: TaskKind }
+  | { type: 'TaskCompleted'; playerId: string; siteId: number; kind: TaskKind; items: number }
   | { type: 'CargoDeposited'; playerId: string; baseId: string; itemCount: number; buildPoints: number; items: Cargo }
   | { type: 'BuildingBuilt'; baseId: string; buildingId: number; kind: BuildingKind }
   | { type: 'CrewAdded'; baseId: string; added: number; crewTotal: number }

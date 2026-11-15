@@ -158,6 +158,7 @@ describe('bots', () => {
     const s = fullGame(4, { lobbySeconds: 0, disasters: false });
     const bot = s.players[1];
     for (const p of s.pickups) p.active = false;
+    for (const t of s.taskSites) t.active = false; // only the one pickup in sight
     bot.pos = { x: 0, z: 0 };
     s.pickups[0].active = true;
     s.pickups[0].pos = { x: 30, z: 0 };

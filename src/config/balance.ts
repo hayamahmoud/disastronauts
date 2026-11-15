@@ -84,6 +84,25 @@ export const BALANCE = {
     },
   },
 
+  // Mini tasks (M4b): BIG pickups the magnet can't pull. Stand next to one and
+  // HOLD the work key (E) to drill an ice deposit, fix a broken solar panel or
+  // scoop a pile of regolith. You stand still while you work, so it costs time
+  // (risky when a disaster is coming), but pays far more than a small pickup.
+  // GAME-BALANCE numbers, not NASA measurements.
+  tasks: {
+    count: 24, // how many big pickups are on the map at once
+    workRadius: 6, // stand this close (studs) to work on one
+    respawnDelay: 20, // seconds before a finished one reappears somewhere new
+    minDistanceFromBase: 40, // they don't appear right next to a base
+    // Each kind: spawn weight, hold time in seconds, and how many items of that
+    // kind it puts in your backpack. You need room for all of them to start.
+    kinds: {
+      ice: { weight: 1, seconds: 3, reward: 4 }, // drill the ice deposit
+      solar: { weight: 1, seconds: 3.5, reward: 4 }, // fix the broken solar panel
+      regolith: { weight: 1, seconds: 2.5, reward: 4 }, // scoop the soil pile
+    },
+  },
+
   growth: {
     // A building costs (firstBuildingCost + costIncrease * buildingsSoFar) build points.
     firstBuildingCost: 6,
@@ -286,6 +305,8 @@ export const BALANCE = {
     thinkInterval: 0.5, // seconds between choosing a new target
     sightRadius: 150, // they only notice pickups (and wrecks) this close
     distanceBias: 20, // bigger = cares less about how far away a pickup is
+    taskSecondsCost: 25, // a mini task's hold time "feels like" this many studs of walking per second
+    taskStopShare: 0.5, // walks this far into a mini task's work circle (0 to 1) before working
     targetTimeout: 12, // give up on a target after this long (e.g. stuck on a hill)
     arriveRadius: 4, // close enough to a walk-to point
     homeStopRadius: 6, // while sheltering, stand this close to the lander
@@ -374,6 +395,8 @@ export const BALANCE = {
 } as const;
 
 export type PickupKind = keyof typeof BALANCE.pickups.kinds;
+// Big pickups that need a mini task (each is named after what it gives you).
+export type TaskKind = keyof typeof BALANCE.tasks.kinds;
 export type BuildingKind = (typeof BALANCE.growth.buildOrder)[number];
 export type ResourceKind = 'power' | 'lifeSupport' | 'shielding';
 // When there isn't enough Power for everything, which building gets it first.

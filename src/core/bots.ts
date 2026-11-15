@@ -5,15 +5,17 @@
 // Simple state machine (see BotMode in state.ts):
 //   wander → seek the best pickup in sight → home when the backpack is full
 //   (or a disaster warning starts) → shelter during flares → back out again.
-//   Now and then it goes for a wreck it can absorb.
+//   Now and then it goes for a wreck it can absorb, or stops to do a mini task
+//   (drill ice, fix a panel, scoop regolith) by holding the same work key you do.
 // Three personalities (balance.ts) make rounds play out differently.
 
 import { BALANCE, type BotPersonality, type PickupKind } from '../config/balance';
 import { cargoCapacity, depositRadius } from './growth';
 import { randomPointNear } from './pickups';
 import { shieldCoverage, storageCapacity } from './resources';
-import type { BaseState, BotState, GameState, PickupState, PlayerInput, PlayerState, Vec2 } from './state';
+import type { BaseState, BotState, GameState, PickupState, PlayerInput, PlayerState, TaskSiteState, Vec2 } from './state';
 import { distance, findBase } from './state';
+import { findTaskSite, hasRoomFor } from './tasks';
 import { canAbsorb } from './wrecks';
 
 const B = BALANCE.bots;
@@ -23,6 +25,7 @@ export function createBotState(personality: BotPersonality): BotState {
     personality,
     mode: 'wander',
     targetPickupId: null,
+    targetTaskId: null,
     targetWreckId: null,
     wanderTo: null,
     thinkTimer: 0,
@@ -47,6 +50,13 @@ export function botInput(state: GameState, player: PlayerState, dt: number): Pla
   bot.thinkTimer -= dt;
   bot.targetTimer += dt;
   chooseMode(state, player, homeBase);
+
+  // Standing at its mini task: hold the work key instead of moving.
+  const site = bot.mode === 'task' ? findTaskSite(state, bot.targetTaskId) : null;
+  if (site && distance(player.pos, site.pos) <= BALANCE.tasks.workRadius * B.taskStopShare) {
+    input.work = true;
+    return input;
+  }
 
   const target = currentTarget(state, player, homeBase);
   if (!target) return input;
@@ -83,7 +93,9 @@ function chooseMode(state: GameState, player: PlayerState, base: BaseState | nul
   // stuck behind a hill), drop it and look around again right away.
   const lost =
     (bot.mode === 'wreck' && !findWreck(state, bot.targetWreckId)) ||
-    (bot.mode === 'seek' && !pickupStillThere(state, player, bot.targetPickupId));
+    (bot.mode === 'seek' && !pickupStillThere(state, player, bot.targetPickupId)) ||
+    (bot.mode === 'task' && !taskStillFree(state, player, bot.targetTaskId));
+  if (player.working !== null) bot.targetTimer = 0; // busy working, not stuck
   if (bot.targetTimer > B.targetTimeout && bot.mode === 'seek') bot.ignorePickupId = bot.targetPickupId;
   if (lost || bot.targetTimer > B.targetTimeout) {
     setMode(bot, 'wander');
@@ -91,8 +103,9 @@ function chooseMode(state: GameState, player: PlayerState, base: BaseState | nul
   }
   if (bot.mode === 'wander' && !bot.wanderTo) bot.thinkTimer = 0; // nowhere to go: think now
 
-  // Otherwise only look around every thinkInterval seconds.
-  if (bot.thinkTimer > 0 || bot.mode === 'wreck') return;
+  // Otherwise only look around every thinkInterval seconds (and never
+  // mid-task: it finishes what it started).
+  if (bot.thinkTimer > 0 || bot.mode === 'wreck' || player.working !== null) return;
   bot.thinkTimer = B.thinkInterval;
 
   const wreck = base ? wreckWorthChasing(state, player, base) : null;
@@ -102,11 +115,18 @@ function chooseMode(state: GameState, player: PlayerState, base: BaseState | nul
     return;
   }
 
-  const pickup = bestPickup(state, player, base);
-  if (pickup) {
-    if (bot.targetPickupId !== pickup.id) {
+  const need = base ? baseNeeds(base) : NO_BASE_NEEDS;
+  const pickup = bestPickup(state, player, need);
+  const task = bestTask(state, player, need);
+  if (task && (!pickup || task.value > pickup.value)) {
+    if (bot.targetTaskId !== task.site.id) {
+      setMode(bot, 'task');
+      bot.targetTaskId = task.site.id;
+    }
+  } else if (pickup) {
+    if (bot.targetPickupId !== pickup.pickup.id) {
       setMode(bot, 'seek');
-      bot.targetPickupId = pickup.id;
+      bot.targetPickupId = pickup.pickup.id;
     }
   } else if (bot.mode !== 'wander' || !bot.wanderTo) {
     setMode(bot, 'wander');
@@ -119,6 +139,7 @@ function setMode(bot: BotState, mode: BotState['mode']): void {
   bot.targetTimer = 0;
   bot.mode = mode;
   if (mode !== 'seek') bot.targetPickupId = null;
+  if (mode !== 'task') bot.targetTaskId = null;
   if (mode !== 'wreck') bot.targetWreckId = null;
   if (mode !== 'wander') bot.wanderTo = null;
 }
@@ -137,6 +158,10 @@ function currentTarget(state: GameState, player: PlayerState, base: BaseState | 
     const pickup = findPickup(state, bot.targetPickupId);
     return pickup ? pickup.pos : null;
   }
+  if (bot.mode === 'task') {
+    const site = findTaskSite(state, bot.targetTaskId);
+    return site ? site.pos : null;
+  }
   if (bot.mode === 'wreck') {
     const wreck = findWreck(state, bot.targetWreckId);
     return wreck ? wreck.pos : null;
@@ -152,10 +177,9 @@ function currentTarget(state: GameState, player: PlayerState, base: BaseState | 
 
 // The pickup with the best "worth it?" score: how much the bot likes it, more
 // if the base needs it, divided by how far away it is.
-function bestPickup(state: GameState, player: PlayerState, base: BaseState | null): PickupState | null {
+function bestPickup(state: GameState, player: PlayerState, need: Record<PickupKind, number>): { pickup: PickupState; value: number } | null {
   const bot = player.bot!;
   const p = B.personalities[bot.personality];
-  const need = base ? baseNeeds(base) : { crate: 0.5, ice: 0, regolith: 0, solar: 0 };
   let best: PickupState | null = null;
   let bestValue = 0;
   for (const pickup of state.pickups) {
@@ -169,8 +193,11 @@ function bestPickup(state: GameState, player: PlayerState, base: BaseState | nul
       best = pickup;
     }
   }
-  return best;
+  return best ? { pickup: best, value: bestValue } : null;
 }
+
+// What the bot assumes when it has no base right now.
+const NO_BASE_NEEDS: Record<PickupKind, number> = { crate: 0.5, ice: 0, regolith: 0, solar: 0 };
 
 // 0 to 1 for each pickup kind: how badly the base needs what it gives.
 function baseNeeds(base: BaseState): Record<PickupKind, number> {
@@ -191,6 +218,37 @@ function findPickup(state: GameState, id: number | null): PickupState | null {
 function pickupStillThere(state: GameState, player: PlayerState, id: number | null): boolean {
   const p = findPickup(state, id);
   return p !== null && p.active && (p.pulledBy === null || p.pulledBy === player.id);
+}
+
+// --- Mini tasks ---
+
+// The best mini task, scored like a pickup: worth `reward` items, but the time
+// spent standing still counts as extra distance (taskSecondsCost).
+function bestTask(state: GameState, player: PlayerState, need: Record<PickupKind, number>): { site: TaskSiteState; value: number } | null {
+  const p = B.personalities[player.bot!.personality];
+  let best: TaskSiteState | null = null;
+  let bestValue = 0;
+  for (const site of state.taskSites) {
+    if (!site.active || (site.workerId !== null && site.workerId !== player.id)) continue;
+    if (!hasRoomFor(state, player, site.kind)) continue;
+    const d = distance(player.pos, site.pos);
+    if (d > B.sightRadius) continue;
+    const kind = BALANCE.tasks.kinds[site.kind];
+    const value = (p.likes[site.kind] * kind.reward * (1 + p.needWeight * need[site.kind])) / (d + B.distanceBias + kind.seconds * B.taskSecondsCost);
+    if (value > bestValue) {
+      bestValue = value;
+      best = site;
+    }
+  }
+  return best ? { site: best, value: bestValue } : null;
+}
+
+// Still there, nobody else on it, and still room in the backpack.
+function taskStillFree(state: GameState, player: PlayerState, id: number | null): boolean {
+  const site = findTaskSite(state, id);
+  if (!site || !site.active) return false;
+  if (site.workerId !== null && site.workerId !== player.id) return false;
+  return player.working === site.id || hasRoomFor(state, player, site.kind);
 }
 
 // --- Wrecks ---

@@ -109,6 +109,7 @@ export function updatePickups(state: GameState, dt: number, events: GameEvent[])
     // Grab: the first rover (in player order) with room whose magnet reaches it.
     if (p.pulledBy === null) {
       for (const player of state.players) {
+        if (player.working !== null) continue; // hands busy with a mini task: magnet paused
         if (player.cargoCount >= cargoCapacity(state, player)) continue;
         if (distance(p.pos, player.pos) <= magnetRadius(state, player)) {
           p.pulledBy = player.id;
@@ -119,8 +120,8 @@ export function updatePickups(state: GameState, dt: number, events: GameEvent[])
     if (p.pulledBy === null) continue;
 
     const player = findPlayer(state, p.pulledBy);
-    if (!player || player.cargoCount >= cargoCapacity(state, player)) {
-      p.pulledBy = null; // cargo filled up while it was flying: drop it where it is
+    if (!player || player.working !== null || player.cargoCount >= cargoCapacity(state, player)) {
+      p.pulledBy = null; // cargo filled up (or a mini task started) while it was flying: drop it where it is
       continue;
     }
 

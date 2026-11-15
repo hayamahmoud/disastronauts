@@ -187,11 +187,12 @@ function getMaterial(color: number, part: Pick<PrimitivePart, 'shape' | 'glow' |
 // swing in opposite pairs, the body bobs a little with each step and leans
 // forward. No side-to-side sway. Call every frame with the ground speed
 // (studs per second).
-export function animateCharacter(root: THREE.Object3D, speed: number, dt: number): void {
+// `working` = busy with a mini task: lean in and pump both arms (drilling, fixing, scooping).
+export function animateCharacter(root: THREE.Object3D, speed: number, dt: number, working = false): void {
   if (root.userData.animation !== 'walk') return;
   const inner = root.getObjectByName('inner');
   if (!inner) return;
-  const u = root.userData as { phase?: number; moving?: number };
+  const u = root.userData as { phase?: number; moving?: number; work?: number };
   // Ease in and out of walking so starts and stops aren't jerky.
   const target = Math.min(1, speed / 12);
   u.moving = (u.moving ?? 0) + (target - (u.moving ?? 0)) * Math.min(1, dt * 8);
@@ -202,14 +203,19 @@ export function animateCharacter(root: THREE.Object3D, speed: number, dt: number
   const swing = Math.sin(phase);
   const idle = Math.sin(phase * 0.8) * 0.05 * (1 - moving); // gentle breathing when standing
   inner.position.y = Math.abs(Math.cos(phase)) * 0.35 * moving + idle;
-  inner.rotation.x = -0.1 * moving; // lean forward when moving
+  // Ease in and out of the working pose too.
+  u.work = (u.work ?? 0) + ((working ? 1 : 0) - (u.work ?? 0)) * Math.min(1, dt * 10);
+  const work = u.work;
+  const pump = Math.sin(phase * 7) * 0.35 * work; // quick up-and-down arm motion
+  inner.rotation.x = -0.1 * moving - 0.3 * work; // lean forward when moving or working
   inner.rotation.z = 0;
   const limb = (name: string, angle: number) => {
     const j = inner.getObjectByName(name);
     if (j) j.rotation.x = angle;
   };
+  // Positive angle = limb swings forward.
   limb('legL', swing * 0.7 * moving);
   limb('legR', -swing * 0.7 * moving);
-  limb('armL', -swing * 0.6 * moving);
-  limb('armR', swing * 0.6 * moving);
+  limb('armL', -swing * 0.6 * moving + 1.2 * work + pump);
+  limb('armR', swing * 0.6 * moving + 1.2 * work - pump);
 }
