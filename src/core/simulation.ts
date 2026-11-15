@@ -12,9 +12,9 @@ import { updateMissions } from './missions';
 import { moveRover } from './movement';
 import { spawnInitialPickups, updateDeposits, updatePickups } from './pickups';
 import { updateResources } from './resources';
-import { createRng } from './rng';
+import { createRng, rngNext } from './rng';
 import { createRound, updateLobby, updateRoundTimer } from './round';
-import type { BaseState, GameState, PlayerInput, PlayerState, TerrainGrid } from './state';
+import type { BaseState, FlareRecord, GameState, PlayerInput, PlayerState, TerrainGrid } from './state';
 import { emptyCargo, findBase } from './state';
 import { requestSupplyDrop, rollLightMinutes, updateSupplyDrops } from './supplyDrop';
 import { generatePlaceholderTerrain } from './terrain';
@@ -29,7 +29,8 @@ export interface PlayerSetup {
 export interface GameSetup {
   seed: number;
   players: PlayerSetup[];
-  terrain?: TerrainGrid; // defaults to the placeholder crater
+  terrain?: TerrainGrid; // the real Jezero map (see terrainFromData); defaults to the placeholder crater
+  flares?: FlareRecord[]; // real flares to replay in order; without them flare classes are random
   disasters?: boolean; // defaults to true; tests can turn disasters off
   // Rounds (lobby countdown + time limit). Defaults to true; tests turn them
   // off so the game starts right away and never ends.
@@ -52,6 +53,8 @@ export function createGame(setup: GameSetup): GameState {
     disastersEnabled: false,
     disaster: null,
     nextDisaster: null,
+    flares: setup.flares ?? [],
+    nextFlareIndex: 0,
     wrecks: [],
     supplyDrops: [],
     lightMinutes: 0,
@@ -105,6 +108,8 @@ export function createGame(setup: GameSetup): GameState {
 
   spawnInitialPickups(state);
   state.lightMinutes = rollLightMinutes(state);
+  // Each game starts the flare replay at a different (seeded) point in the list.
+  if (state.flares.length > 0) state.nextFlareIndex = Math.floor(rngNext(state.rng) * state.flares.length);
   setupDisasters(state, setup.disasters ?? true);
   return state;
 }

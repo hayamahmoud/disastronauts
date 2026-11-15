@@ -1,5 +1,6 @@
-// Terrain height: sampling the elevation grid, plus a PLACEHOLDER generator
-// used until the real Mars Trek elevation for Jezero Crater is processed.
+// Terrain height: sampling the elevation grid, building it from the real
+// Jezero Crater data (src/data/map_heights.json, made by tools/process_marstrek.py),
+// plus a PLACEHOLDER generator used only if the real data is missing (and by tests).
 // The placeholder is shaped like a crater (floor, steep wall, rim) with a
 // raised "delta" lobe and a few small craters, so gameplay feels the same.
 
@@ -27,7 +28,24 @@ export function sampleHeight(grid: TerrainGrid, x: number, z: number): number {
   return top + (bottom - top) * fz;
 }
 
-// TODO-REAL-DATA: replaced by src/data/map_heights.json (Mars Trek, Jezero Crater) in M5.
+// The shape of src/data/map_heights.json that the game needs.
+export interface TerrainData {
+  size: number; // points per side
+  worldSize: number; // studs per side
+  heights: number[]; // row by row, row 0 = north, col 0 = west (same as TerrainGrid)
+}
+
+// Real Mars elevation (already in studs) -> the game's height grid.
+// SOURCE: MOLA elevation via NASA Mars Trek / USGS, Jezero Crater (see docs/DATA.md).
+export function terrainFromData(data: TerrainData): TerrainGrid {
+  if (data.size < 2 || data.heights.length !== data.size * data.size) {
+    throw new Error(`Map data has ${data.heights.length} heights, expected ${data.size} x ${data.size}`);
+  }
+  if (!data.heights.every((h) => Number.isFinite(h))) throw new Error('Map data has a missing height');
+  return { size: data.size, worldSize: data.worldSize, heights: data.heights.slice(), isPlaceholder: false };
+}
+
+// Fallback crater, used when the real map isn't available (and by most tests).
 export function generatePlaceholderTerrain(seed: number): TerrainGrid {
   const m = BALANCE.map;
   const rng = createRng(seed ^ 0x5eed);

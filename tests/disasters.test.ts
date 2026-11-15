@@ -57,7 +57,7 @@ function addBuildings(s: GameState, base: BaseState, kind: BuildingKind, count: 
 
 // Force a specific disaster to start right now.
 function startDisaster(s: GameState, kind: 'dustStorm' | 'solarFlare' | 'coldNight', strength = 1): void {
-  s.disaster = { kind, flareClass: kind === 'solarFlare' ? 'M' : null, strength, startedAt: s.time, endsAt: s.time + 1e9 };
+  s.disaster = { kind, flareClass: kind === 'solarFlare' ? 'M' : null, realFlare: null, strength, startedAt: s.time, endsAt: s.time + 1e9 };
 }
 
 describe('disasters', () => {
@@ -327,7 +327,7 @@ describe('missions', () => {
 
   it('a solar flare coming soon asks for soil (regolith) for the shield', () => {
     const s = newGame();
-    s.nextDisaster = { kind: 'solarFlare', flareClass: 'M', strength: 1, startsAt: 30, warned: false };
+    s.nextDisaster = { kind: 'solarFlare', flareClass: 'M', realFlare: null, strength: 1, startsAt: 30, warned: false };
     const m = pickMission(s, s.bases[0]);
     expect(m.kind).toBe('bringRegolith');
     expect(m.disaster).toBe('solarFlare');
@@ -336,7 +336,7 @@ describe('missions', () => {
 
   it('a dust storm coming soon asks you to charge the battery', () => {
     const s = newGame();
-    s.nextDisaster = { kind: 'dustStorm', flareClass: null, strength: 1, startsAt: 30, warned: false };
+    s.nextDisaster = { kind: 'dustStorm', flareClass: null, realFlare: null, strength: 1, startsAt: 30, warned: false };
     const m = pickMission(s, s.bases[0]);
     expect(m.kind).toBe('storePower');
     expect(m.target).toBe(powerTarget(s.bases[0]));

@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "data": ".venv/bin/python tools/fetch_donki.py && .venv/bin/python tools/fetch_radlab.py && .venv/bin/python tools/process_marstrek.py && .venv/bin/python tools/fetch_rover_photos.py && vitest run"
   },
   "dependencies": {
     "three": "^0.187.0"

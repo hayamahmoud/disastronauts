@@ -3,7 +3,8 @@
 //
 // - Dust storm (daytime only): solar panels make much less Power, and the wind slows you down.
 // - Solar flare: your base needs extra Shielding while it lasts; crew NOT covered
-//   get hurt (more if your astronaut is outside).
+//   get hurt (more if your astronaut is outside). Each one replays a REAL flare
+//   from NASA DONKI (state.flares), whose class (C, M or X) sets how strong it is.
 // - Cold night: from sunset to sunrise, every shelter needs extra Power for heaters.
 //
 // The next disaster is always decided in advance (state.nextDisaster), so
@@ -13,7 +14,7 @@ import { BALANCE, type DisasterKind, type FlareClass } from '../config/balance';
 import { timeOfSol } from './dayNight';
 import type { GameEvent } from './events';
 import { rngRange, rngWeighted } from './rng';
-import type { GameState, PlannedDisaster } from './state';
+import type { GameState, PlannedDisaster, RealFlare } from './state';
 
 const D = BALANCE.disasters;
 const KINDS = Object.keys(D.weights) as DisasterKind[];
@@ -32,6 +33,7 @@ function planDisaster(state: GameState, earliest: number): PlannedDisaster {
   const kind = rngWeighted(state.rng, KINDS, (k) => D.weights[k]);
   let startsAt = earliest;
   let flareClass: FlareClass | null = null;
+  let realFlare: RealFlare | null = null;
   let strength = 1;
 
   if (kind === 'dustStorm') {
@@ -49,10 +51,25 @@ function planDisaster(state: GameState, earliest: number): PlannedDisaster {
     startsAt = earliest + untilSunset * BALANCE.sol.seconds;
   }
   if (kind === 'solarFlare') {
-    flareClass = rngWeighted(state.rng, FLARE_CLASSES, (c) => D.solarFlare.classes[c].weight);
+    const real = takeRealFlare(state);
+    if (real) {
+      flareClass = real.classLetter;
+      realFlare = { id: real.id, classType: real.classType, peakTime: real.peakTime };
+    } else {
+      // No flare data: pick a class at random (game-balance weights).
+      flareClass = rngWeighted(state.rng, FLARE_CLASSES, (c) => D.solarFlare.classes[c].weight);
+    }
     strength = D.solarFlare.classes[flareClass].strength;
   }
-  return { kind, flareClass, strength, startsAt, warned: false };
+  return { kind, flareClass, realFlare, strength, startsAt, warned: false };
+}
+
+// The next real NASA flare in the replay list (wraps around), or null if there's no list.
+function takeRealFlare(state: GameState) {
+  if (state.flares.length === 0) return null;
+  const flare = state.flares[state.nextFlareIndex % state.flares.length];
+  state.nextFlareIndex = (state.nextFlareIndex + 1) % state.flares.length;
+  return flare;
 }
 
 // How long a disaster of this kind lasts, in seconds.
@@ -92,6 +109,7 @@ export function updateDisasters(state: GameState, events: GameEvent[]): void {
     state.disaster = {
       kind: next.kind,
       flareClass: next.flareClass,
+      realFlare: next.realFlare,
       strength: next.strength,
       startedAt: now,
       endsAt: now + duration,
