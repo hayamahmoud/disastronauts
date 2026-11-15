@@ -141,6 +141,10 @@ export function step(state: GameState, inputs: PlayerInput[], dt: number): GameE
     return events;
   }
   if (state.round.phase === 'ended') return events;
+  // Immediate starts still notify the HUD, audio and facts once.
+  if (state.tick === 0 && state.round.timed) {
+    events.push({ type: 'RoundStarted', seconds: state.round.length });
+  }
 
   for (const player of state.players) {
     // Bots decide their own input here, the same shape a human's input has.

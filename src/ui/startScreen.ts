@@ -41,7 +41,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
         <div class="console-title"><h2>Mission settings</h2></div>
         <button class="settings-close" aria-label="Close settings">×</button>
       </header>
-      <p><strong>Players</strong> includes you and up to three computer rivals. After a 10-second countdown you get 5 minutes: the highest <strong>Colony Score</strong> wins!</p>
+      <p><strong>Players</strong> includes you and up to three computer rivals. You get 5 minutes: the highest <strong>Colony Score</strong> wins!</p>
       <p>Move with <strong>WASD / arrow keys</strong> (on a tablet or phone: the <strong>joystick</strong>). Nearby supplies collect automatically. Return to your base to unload.</p>
       <p><strong>C</strong> changes the camera. <strong>P</strong> changes power priority. <strong>Space</strong> calls Earth for a supply drop. <strong>E</strong> (hold) does a mini task. <strong>B</strong> uses a Solar Boost.</p>
       <p>Every round earns <strong>coins</strong> and <strong>XP</strong>. Spend coins in the <strong>Shop</strong> on upgrades, power-ups and new looks. No real money, ever!</p>

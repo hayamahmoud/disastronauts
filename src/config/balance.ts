@@ -286,7 +286,7 @@ export const BALANCE = {
 
   // One round: a short lobby countdown, then a timed game. Highest Colony Score wins.
   round: {
-    lobbySeconds: 10, // everyone has landed; the countdown runs before you can move
+    lobbySeconds: 0, // start playing immediately after launch
     seconds: 300, // 5 minutes of play (about 5 sols)
     endWarningSeconds: 30, // "30 seconds left!" message
   },
