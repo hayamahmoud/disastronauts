@@ -10,5 +10,8 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     environment: 'node', // core logic needs no browser
+    // Some tests play whole rounds (~1 s on a laptop, ~6 s on Vercel's 2-core
+    // build machine). The default 5 s limit failed the deploy, so allow 30 s.
+    testTimeout: 30_000,
   },
 });
