@@ -26,6 +26,14 @@
   --color-frost: rgba(138, 156, 200, 0.4);
   --color-alert: #7a2433; /* the banner while a disaster is happening */
   --color-star: #ffd34a;
+  --color-coin: #ffd34a; /* coins and the Shield Bubble (M6) */
+  --color-xp: #b58cf0; /* XP bar */
+  --color-owned: #7fd08a; /* "Owned" tick in the shop */
+  /* Cosmetic colors: same values as THEME.cosmetic* in theme.ts (shop swatches). */
+  --color-cosmeticGold: #ffd34a;
+  --color-cosmeticMint: #7fe0c4;
+  --color-cosmeticPink: #ff7ab8;
+  --color-cosmeticSky: #9fd8f4;
   --color-dim: rgba(43, 33, 64, 0.55); /* screen behind the lobby and podium */
   --color-silver: #d9d4e6; /* 2nd place step */
   --color-bronze: #e0a070; /* 3rd place step */
@@ -391,6 +399,38 @@ body {
 }
 .hud-call.is-waiting {
   opacity: 0.75;
+}
+
+/* Packed power-ups (M6), above Call Earth: Shield Bubble badge + Solar Boost button. */
+.hud-powerups {
+  position: absolute;
+  right: 14px;
+  bottom: 130px;
+  display: flex;
+  gap: var(--space-s);
+  align-items: center;
+}
+.hud-powerups .button {
+  position: static;
+}
+.hud-bubble {
+  padding: var(--space-xs) var(--space-m);
+  border-radius: var(--radius-pill);
+  background: var(--color-plum);
+  color: var(--color-cream);
+  font-size: var(--font-size-s);
+  border: 2px solid var(--color-track);
+}
+.hud-bubble.is-on {
+  border-color: var(--color-coin);
+  animation: pop 0.3s ease-out;
+}
+.hud-boost.is-waiting {
+  opacity: 0.75;
+}
+.hud-powerups .is-hidden,
+.hud-powerups.is-hidden {
+  display: none;
 }
 
 /* Mini task prompt, bottom middle: [icon] [E] Hold to drill the ice, and a
@@ -869,7 +909,7 @@ body {
 /* Where the space weather comes from: LIVE (green dot) or archived. */
 .hud-data {
   right: 14px;
-  bottom: 130px;
+  bottom: 188px;
   max-width: 260px;
   text-align: right;
 }
@@ -968,6 +1008,138 @@ body {
 .start-data:focus-visible {
   outline: 3px solid #ffe1ae;
   outline-offset: 3px;
+}
+
+/* ---------- Shop (M6). Uses the menu's dialog look (.start-help). ---------- */
+.shop-screen {
+  width: min(640px, 92vw);
+}
+.shop-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-m);
+  align-items: center;
+  justify-content: space-between;
+  font-size: 18px;
+}
+.shop-coins b {
+  color: var(--color-coin);
+}
+.shop-level {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+}
+.shop-xp-bar {
+  display: inline-block;
+  width: 140px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-track);
+  overflow: hidden;
+}
+.shop-xp-bar span {
+  display: block;
+  height: 100%;
+  background: var(--color-xp);
+}
+.shop-daily {
+  display: block;
+  width: 100%;
+  margin: var(--space-m) 0 0;
+  padding: 10px;
+  border: 2px dashed var(--color-coin);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-coin);
+  font: bold 15px 'Trebuchet MS', sans-serif;
+  cursor: pointer;
+}
+.shop-daily:disabled {
+  border-color: #bc927655;
+  color: #c8ab99;
+  cursor: default;
+}
+.shop-screen .shop-intro,
+.shop-screen .shop-note {
+  margin: 4px 0 8px;
+  font-size: 13px;
+}
+.shop-shelf {
+  margin: 18px 0 0;
+  color: #f6d3af;
+  font-size: 19px;
+}
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+}
+.shop-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #bc927655;
+  border-radius: 14px;
+}
+.shop-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.shop-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--look);
+  border: 2px solid var(--color-cream);
+}
+.shop-item-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #dec3b0;
+}
+.shop-buy {
+  border: 0;
+  border-radius: 10px;
+  padding: 8px;
+  background: #f1bd8c;
+  color: #30212a;
+  font: bold 14px 'Trebuchet MS', sans-serif;
+  cursor: pointer;
+}
+.shop-buy:disabled {
+  background: #4a3a52;
+  color: #c8ab99;
+  cursor: default;
+}
+.shop-buy.is-owned,
+.shop-buy.is-on {
+  background: #2f5a3a;
+  color: #e6ffe9;
+}
+
+/* Start screen: Shop button (under Real NASA Data) with your coins. */
+.start-shop {
+  top: 12.5%;
+}
+
+/* Podium: what this round earned you. */
+.podium-reward {
+  margin: 0 0 var(--space-m);
+  text-align: center;
+  font-size: var(--font-size-m);
+}
+.podium-reward b {
+  color: var(--color-link);
+}
+.podium-reward .is-level-up {
+  display: block;
+  color: var(--color-link);
+  font-weight: bold;
+  animation: pop 0.4s ease-out;
 }
 
 /* Podium: the rover photo you won, and the data button. */

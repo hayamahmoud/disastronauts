@@ -70,6 +70,14 @@ export const THEME = {
   scorch: 0x3a2b2e, // burnt metal on wrecks
   landingMarker: 0xf07a2e, // where a supply drop will land
   parachute: 0xfff4ea,
+  bubbleDome: 0xffd34a, // a Shield Bubble power-up: a golden bubble over the base
+
+  // Shop cosmetics (M6): suit trims and base flags use these colors
+  // (catalog items name them in their "look" field). Kept away from the 4 team colors.
+  cosmeticGold: 0xffd34a,
+  cosmeticMint: 0x7fe0c4,
+  cosmeticPink: 0xff7ab8,
+  cosmeticSky: 0x9fd8f4,
 } as const;
 
 // How 3D materials are drawn. Part of the theme so a visual direction can

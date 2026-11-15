@@ -1,0 +1,237 @@
+[
+  {
+    "id": "rover_speed_1",
+    "name": "Turbo Boots",
+    "kind": "upgrade",
+    "robloxType": "GamePass",
+    "coinPrice": 200,
+    "robuxPrice": null,
+    "unlockLevel": 1,
+    "slot": null,
+    "look": null,
+    "effects": [
+      {
+        "modifier": "roverSpeed",
+        "op": "mul",
+        "value": 1.1
+      }
+    ],
+    "description": "You walk 10% faster."
+  },
+  {
+    "id": "magnet_1",
+    "name": "Mega Magnet",
+    "kind": "upgrade",
+    "robloxType": "GamePass",
+    "coinPrice": 250,
+    "robuxPrice": null,
+    "unlockLevel": 1,
+    "slot": null,
+    "look": null,
+    "effects": [
+      {
+        "modifier": "magnetRadius",
+        "op": "mul",
+        "value": 1.2
+      }
+    ],
+    "description": "Your magnet pulls supplies from 20% farther away."
+  },
+  {
+    "id": "cargo_1",
+    "name": "Big Backpack",
+    "kind": "upgrade",
+    "robloxType": "GamePass",
+    "coinPrice": 250,
+    "robuxPrice": null,
+    "unlockLevel": 2,
+    "slot": null,
+    "look": null,
+    "effects": [
+      {
+        "modifier": "cargoCapacity",
+        "op": "add",
+        "value": 2
+      }
+    ],
+    "description": "Carry 2 more things before you have to walk home."
+  },
+  {
+    "id": "solar_1",
+    "name": "Better Solar Panels",
+    "kind": "upgrade",
+    "robloxType": "GamePass",
+    "coinPrice": 300,
+    "robuxPrice": null,
+    "unlockLevel": 3,
+    "slot": null,
+    "look": null,
+    "effects": [
+      {
+        "modifier": "solarEfficiency",
+        "op": "mul",
+        "value": 1.15
+      }
+    ],
+    "description": "Your solar panels make 15% more Power."
+  },
+  {
+    "id": "shield_bubble",
+    "name": "Shield Bubble",
+    "kind": "powerup",
+    "robloxType": "DeveloperProduct",
+    "coinPrice": 60,
+    "robuxPrice": null,
+    "unlockLevel": 1,
+    "slot": null,
+    "look": null,
+    "effects": [
+      {
+        "modifier": "flareBubbles",
+        "op": "add",
+        "value": 1
+      }
+    ],
+    "description": "Next round: blocks all radiation from one solar flare. Costs 30 Power when it switches on."
+  },
+  {
+    "id": "solar_boost",
+    "name": "Solar Boost",
+    "kind": "powerup",
+    "robloxType": "DeveloperProduct",
+    "coinPrice": 50,
+    "robuxPrice": null,
+    "unlockLevel": 1,
+    "slot": null,
+    "look": null,
+    "effects": [
+      {
+        "modifier": "solarBoosts",
+        "op": "add",
+        "value": 1
+      }
+    ],
+    "description": "Next round: press B for double solar Power for 30 seconds. Then the panels overheat and make half Power for 30 seconds."
+  },
+  {
+    "id": "express_drop",
+    "name": "Express Supply Drop",
+    "kind": "powerup",
+    "robloxType": "DeveloperProduct",
+    "coinPrice": 40,
+    "robuxPrice": null,
+    "unlockLevel": 2,
+    "slot": null,
+    "look": null,
+    "effects": [
+      {
+        "modifier": "supplyDropDelay",
+        "op": "mul",
+        "value": 0.5
+      },
+      {
+        "modifier": "supplyDropPowerCost",
+        "op": "mul",
+        "value": 1.5
+      }
+    ],
+    "description": "Next round: supply drops arrive twice as fast, but the faster rocket costs 50% more Power to call."
+  },
+  {
+    "id": "trim_gold",
+    "name": "Gold Suit Trim",
+    "kind": "cosmetic",
+    "robloxType": "None",
+    "coinPrice": 0,
+    "robuxPrice": null,
+    "unlockLevel": 2,
+    "slot": "trim",
+    "look": "cosmeticGold",
+    "effects": [],
+    "description": "Shiny gold boots, gloves and backpack. Free at level 2!"
+  },
+  {
+    "id": "trim_mint",
+    "name": "Mint Suit Trim",
+    "kind": "cosmetic",
+    "robloxType": "None",
+    "coinPrice": 80,
+    "robuxPrice": null,
+    "unlockLevel": 1,
+    "slot": "trim",
+    "look": "cosmeticMint",
+    "effects": [],
+    "description": "Cool mint boots, gloves and backpack."
+  },
+  {
+    "id": "trim_pink",
+    "name": "Nebula Pink Suit Trim",
+    "kind": "cosmetic",
+    "robloxType": "None",
+    "coinPrice": 80,
+    "robuxPrice": null,
+    "unlockLevel": 1,
+    "slot": "trim",
+    "look": "cosmeticPink",
+    "effects": [],
+    "description": "Bright pink boots, gloves and backpack."
+  },
+  {
+    "id": "flag_sky",
+    "name": "Sky Blue Flag",
+    "kind": "cosmetic",
+    "robloxType": "None",
+    "coinPrice": 0,
+    "robuxPrice": null,
+    "unlockLevel": 3,
+    "slot": "flag",
+    "look": "cosmeticSky",
+    "effects": [],
+    "description": "A flag that waves over your base. Free at level 3!"
+  },
+  {
+    "id": "flag_gold",
+    "name": "Gold Flag",
+    "kind": "cosmetic",
+    "robloxType": "None",
+    "coinPrice": 100,
+    "robuxPrice": null,
+    "unlockLevel": 1,
+    "slot": "flag",
+    "look": "cosmeticGold",
+    "effects": [],
+    "description": "A golden flag that waves over your base."
+  },
+  {
+    "id": "flag_pink",
+    "name": "Nebula Pink Flag",
+    "kind": "cosmetic",
+    "robloxType": "None",
+    "coinPrice": 0,
+    "robuxPrice": null,
+    "unlockLevel": 5,
+    "slot": "flag",
+    "look": "cosmeticPink",
+    "effects": [],
+    "description": "A bright pink flag for your base. Free at level 5!"
+  },
+  {
+    "id": "vip",
+    "name": "VIP",
+    "kind": "pass",
+    "robloxType": "GamePass",
+    "coinPrice": null,
+    "robuxPrice": null,
+    "unlockLevel": 1,
+    "slot": null,
+    "look": null,
+    "effects": [
+      {
+        "modifier": "coinMultiplier",
+        "op": "mul",
+        "value": 2
+      }
+    ],
+    "description": "Roblox only (not in the web game): earn double coins."
+  }
+]

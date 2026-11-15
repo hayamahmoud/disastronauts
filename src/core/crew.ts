@@ -38,7 +38,7 @@ export function crewDamagePerSol(state: GameState, base: BaseState): CrewDamage 
 // your astronaut is out on the surface (outside the base's unload circle).
 function flareDamagePerSol(state: GameState, base: BaseState): number {
   const d = state.disaster;
-  if (!d || d.kind !== 'solarFlare') return 0;
+  if (!d || d.kind !== 'solarFlare' || base.bubble) return 0; // a Shield Bubble blocks it all
   const F = BALANCE.disasters.solarFlare;
   let damage = F.damagePerSol * (1 - flareCoverage(base, d.flareClass));
   if (isOwnerOutside(state, base)) damage += F.outsideDamagePerSol;

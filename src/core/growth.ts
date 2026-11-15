@@ -9,13 +9,13 @@ import { findBase } from './state';
 export function magnetRadius(state: GameState, player: PlayerState): number {
   const n = buildingCount(state, player);
   const M = BALANCE.magnet;
-  return Math.min(M.maxRadius, M.baseRadius + M.radiusPerBuilding * n);
+  return Math.min(M.maxRadius, M.baseRadius + M.radiusPerBuilding * n) * player.mods.magnetRadius;
 }
 
 export function cargoCapacity(state: GameState, player: PlayerState): number {
   const n = buildingCount(state, player);
   const C = BALANCE.cargo;
-  return Math.min(C.maxCapacity, C.baseCapacity + C.capacityPerBuilding * n);
+  return Math.min(C.maxCapacity, C.baseCapacity + C.capacityPerBuilding * n) + Math.round(player.mods.cargoCapacity);
 }
 
 export function depositRadius(base: BaseState): number {

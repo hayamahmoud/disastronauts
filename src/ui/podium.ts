@@ -1,7 +1,8 @@
 // The podium: shown when the round ends. Top 3 on the steps (2nd, 1st, 3rd),
 // your place and how your score was made, the full list, one "What you
 // learned" fact, a real rover photo card if you earned one (won, or
-// survived a disaster), and buttons: play again, NASA data, menu.
+// survived a disaster), the coins and XP you earned, and buttons:
+// play again, shop, NASA data, menu.
 // Built once from state.round.results (saved by the sim when time ran out).
 
 import type { GameState, Standing } from '../core/state';
@@ -9,6 +10,14 @@ import { photoForRound } from '../services/DataService';
 import { createIcon, el } from './components';
 import { factForRound } from './facts';
 import { teamCss } from './theme';
+
+// What this round earned you (filled in by main.ts when the round ends).
+export interface PodiumReward {
+  coins: number;
+  xp: number;
+  levelBefore: number;
+  levelAfter: number;
+}
 
 export interface Podium {
   update(state: GameState): void;
@@ -23,6 +32,8 @@ export function createPodium(
   onMenu: () => void,
   onData: () => void,
   survivedDisaster: () => boolean, // did your base make it through a disaster this round?
+  reward: () => PodiumReward | null,
+  onShop: () => void,
 ): Podium {
   let shown = false;
 
@@ -76,6 +87,15 @@ export function createPodium(
       card.appendChild(parts);
     }
 
+    // Coins and XP you earned (spend them in the Shop).
+    const r = reward();
+    if (r) {
+      const line = el('div', 'podium-reward');
+      line.append(createIcon('icon_coin'), el('b', '', ` +${r.coins} coins`), '  ', createIcon('icon_xp'), el('b', '', ` +${r.xp} XP`));
+      if (r.levelAfter > r.levelBefore) line.appendChild(el('span', 'is-level-up', `⬆️ Level up! You are now level ${r.levelAfter}. New things in the Shop!`));
+      card.appendChild(line);
+    }
+
     // Everyone, best first.
     const list = el('ol', 'podium-list');
     for (const s of results) {
@@ -127,10 +147,13 @@ export function createPodium(
     const data = el('button', 'button podium-button', '🛰️ NASA data');
     data.type = 'button';
     data.addEventListener('click', onData);
+    const shop = el('button', 'button podium-button', '🛒 Shop');
+    shop.type = 'button';
+    shop.addEventListener('click', onShop);
     const menu = el('button', 'button podium-button', 'Menu');
     menu.type = 'button';
     menu.addEventListener('click', onMenu);
-    buttons.append(again, data, menu);
+    buttons.append(again, shop, data, menu);
     card.appendChild(buttons);
     window.setTimeout(() => again.focus(), 0);
 

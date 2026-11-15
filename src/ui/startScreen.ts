@@ -1,12 +1,19 @@
 import type { GameAudio } from '../audio/gameAudio';
 import { openDataScreen } from './dataScreen';
 
+// The Shop button on the menu: opens the shop and shows your coins.
+export interface MenuShop {
+  open: () => void;
+  coins: () => number;
+  onChange: (listener: () => void) => () => void;
+}
+
 export interface LaunchOptions {
   players: number;
 }
 
 // Artwork and hit targets share one 16:9 coordinate system, including when resized.
-export function createStartScreen(onStart: (options: LaunchOptions) => void, audio: GameAudio) {
+export function createStartScreen(onStart: (options: LaunchOptions) => void, audio: GameAudio, shop: MenuShop) {
   const screen = document.createElement('main');
   screen.className = 'start-screen';
   screen.setAttribute('aria-label', 'Disastronauts starting page');
@@ -15,6 +22,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
       <img class="start-art" src="${import.meta.env.BASE_URL}ui/starting-page-launch-bg.png" alt="Disastronauts: a cozy illustrated Mars outpost under a starry sky, with an astronaut and a rocket ready for launch." draggable="false">
       <button class="start-settings art-hit" aria-label="Settings and controls"></button>
       <button class="start-data">🛰️ Real NASA Data</button>
+      <button class="start-data start-shop">🛒 Shop · 🪙 <span class="start-coins"></span></button>
       <section class="start-selector players-selector" aria-label="Players">
         <button class="art-hit previous" aria-label="Fewer players"></button>
         <output class="selector-value" aria-live="polite">4</output>
@@ -32,7 +40,8 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
       <h2>Mission settings</h2>
       <p><strong>Players</strong> includes you and up to three computer rivals. After a 10-second countdown you get 5 minutes: the highest <strong>Colony Score</strong> wins!</p>
       <p>Move with <strong>WASD / arrow keys</strong>. Nearby supplies collect automatically. Return to your base to unload.</p>
-      <p><strong>C</strong> changes the camera. <strong>P</strong> changes power priority. <strong>Space</strong> calls Earth for a supply drop.</p>
+      <p><strong>C</strong> changes the camera. <strong>P</strong> changes power priority. <strong>Space</strong> calls Earth for a supply drop. <strong>E</strong> (hold) does a mini task. <strong>B</strong> uses a Solar Boost.</p>
+      <p>Every round earns <strong>coins</strong> and <strong>XP</strong>. Spend coins in the <strong>🛒 Shop</strong> on upgrades, power-ups and new looks. No real money, ever!</p>
       <fieldset class="audio-settings">
         <legend>Sound</legend>
         <label class="audio-mute"><input type="checkbox" class="settings-mute"> Mute all sound</label>
@@ -74,7 +83,12 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
   effectsSlider.onchange = () => audio.click();
   mute.onchange = () => audio.setMuted(mute.checked);
   click('.start-settings', () => { syncAudio(); dialog.showModal(); });
-  click('.start-data', () => openDataScreen({ flares: null, realMap: null }));
+  click('.start-data:not(.start-shop)', () => openDataScreen({ flares: null, realMap: null }));
+  click('.start-shop', shop.open);
+  const coins = screen.querySelector<HTMLSpanElement>('.start-coins')!;
+  const showCoins = () => { coins.textContent = String(shop.coins()); };
+  const unsubscribeShop = shop.onChange(showCoins);
+  showCoins();
   click('.settings-close', () => dialog.close());
   click('.settings-done', () => dialog.close());
   const launch = screen.querySelector<HTMLButtonElement>('.start-launch')!;
@@ -97,6 +111,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
       audio.enterGame();
       onStart({ players });
       unsubscribeAudio();
+      unsubscribeShop();
       screen.remove();
     };
     launch.addEventListener('animationend', event => {

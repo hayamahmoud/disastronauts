@@ -5,6 +5,7 @@
 import { BALANCE, type BuildingKind, type PowerPriority } from '../config/balance';
 import { sunlight } from './dayNight';
 import { heatPerShelterPerSol, solarFactor } from './disasters';
+import { solarModifier } from './powerups';
 import type { GameEvent } from './events';
 import type { BaseState, GameState } from './state';
 
@@ -44,11 +45,12 @@ export function healthyCrew(base: BaseState): number {
   return Math.max(0, base.crew - base.sick);
 }
 
-// Solar output per sol right now (changes with the time of day, and dust storms block it).
+// Solar output per sol right now (changes with the time of day, dust storms
+// block it, and the owner's solar upgrade / Solar Boost change it).
 export function solarPerSol(state: GameState, base: BaseState): number {
   const panels = countBuildings(base, 'solar_panel');
   const full = (R.landerSolarPerSol + panels * R.solarPanelPerSol) * R.marsSunlight;
-  return full * sunlight(state.time) * solarFactor(state);
+  return full * sunlight(state.time) * solarFactor(state) * solarModifier(state, base);
 }
 
 // Power a building (or the lander) uses per sol right now. On a cold night,

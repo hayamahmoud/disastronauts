@@ -18,6 +18,12 @@ import { createPodium, type Podium } from './ui/podium';
 import { loadFlares, loadTerrain, type FlareSet } from './services/DataService';
 import { openDataScreen, wantsLiveSpaceWeather } from './ui/dataScreen';
 import { createFactPopup, type FactPopup } from './ui/factPopup';
+import { ProfileService } from './services/ProfileService';
+import { WebMonetizationService } from './services/MonetizationService';
+import { openShop } from './ui/shop';
+import { roundReward } from './core/progression';
+import type { PodiumReward } from './ui/podium';
+import type { Modifiers } from './core/modifiers';
 
 const LOCAL_PLAYER = 'p1';
 const audio = createGameAudio(LOCAL_PLAYER);
@@ -50,6 +56,16 @@ let terrain: TerrainGrid | null = null;
 let flareSet: FlareSet;
 let survivedDisaster = false; // for the rover photo reward on the podium
 
+// Your coins, XP and what you own (saved in this browser), and the coins-only shop.
+const profile = new ProfileService();
+const shop = new WebMonetizationService(profile);
+function showShop() {
+  audio.click();
+  openShop({ profile, shop, click: () => audio.click() });
+}
+let myMods: Modifiers; // this round's upgrades + packed power-ups (for the VIP coin bonus)
+let reward: PodiumReward | null = null; // what this round earned (null until it ends)
+
 const menu = createStartScreen(async (options) => {
   playerCount = options.players;
   shadows = menu.shadows();
@@ -59,7 +75,7 @@ const menu = createStartScreen(async (options) => {
   if (live) ui.replaceChildren(Object.assign(document.createElement('div'), { className: 'message', textContent: '📡 Asking NASA for today’s space weather…' }));
   flareSet = await loadFlares(live);
   startRound(firstSeed);
-}, audio);
+}, audio, { open: showShop, coins: () => profile.profile.coins, onChange: (l) => profile.onChange(l) });
 
 // Builds a fresh round: new world, view and HUD. Used for the first round and
 // for "Play again" (instant replay, no trip back to the menu).
@@ -70,11 +86,15 @@ function startRound(seed: number) {
   ui.replaceChildren();
 
   // Player 1 is you; players 2-4 are computer rivals, one per personality.
+  // Only you get your shop upgrades, power-ups and looks; rivals use the defaults.
+  const loadout = profile.takeRoundLoadout();
+  myMods = loadout.mods;
+  reward = null;
   const order = BALANCE.bots.order;
   state = createGame({
     seed,
     players: Array.from({ length: playerCount }, (_, i) => {
-      if (i === 0) return { id: 'p1', name: 'You' };
+      if (i === 0) return { id: 'p1', name: 'You', mods: loadout.mods, cosmetics: loadout.cosmetics };
       const bot = order[(i - 1) % order.length];
       return { id: `p${i + 1}`, name: BALANCE.bots.personalities[bot].name, bot };
     }),
@@ -84,7 +104,7 @@ function startRound(seed: number) {
     ...devRoundOverrides(),
   });
   view = createGameView(document.getElementById('game')!, state, LOCAL_PLAYER, shadows);
-  hud = createHud(ui, LOCAL_PLAYER, { flares: flareSet, realMap: !state.terrain.isPlaceholder }, togglePowerPriority, callEarth);
+  hud = createHud(ui, LOCAL_PLAYER, { flares: flareSet, realMap: !state.terrain.isPlaceholder }, togglePowerPriority, callEarth, solarBoost);
   minimap = createMinimap(ui, LOCAL_PLAYER, () => view!.getMapYaw());
   scoreboard = createScoreboard(ui, LOCAL_PLAYER);
   lobby = createLobby(ui, state, LOCAL_PLAYER);
@@ -96,10 +116,13 @@ function startRound(seed: number) {
     backToMenu,
     () => { audio.click(); openDataScreen({ flares: flareSet, realMap: !state.terrain.isPlaceholder }); },
     () => survivedDisaster,
+    () => reward,
+    showShop,
   );
   survivedDisaster = false;
   pendingPriority = undefined;
   pendingSupplyDrop = false;
+  pendingSolarBoost = false;
   if (import.meta.env.DEV) setUpDevHelpers();
   playing = true;
 }
@@ -146,10 +169,19 @@ function callEarth() {
   pendingSupplyDrop = true;
 }
 
+// Solar Boost power-up (key B): one-off command too.
+let pendingSolarBoost = false;
+function solarBoost() {
+  if (!canAct()) return;
+  audio.click();
+  pendingSolarBoost = true;
+}
+
 const keyboard = createKeyboardInput();
 keyboard.onKeyPress('KeyC', () => { if (playing) view?.toggleCameraMode(); });
 keyboard.onKeyPress('KeyP', togglePowerPriority);
 keyboard.onKeyPress('Space', callEarth);
+keyboard.onKeyPress('KeyB', solarBoost);
 
 // Dev builds only (not in the deployed game). Runs when you press Start.
 // - Inspect the live state from the browser console with `__disastronauts.state`.
@@ -200,9 +232,10 @@ function frame(now: number) {
     const moveZ = -move.x * Math.sin(yaw) + move.z * Math.cos(yaw);
     // Hold E (or the on-screen work button) to work on a mini task.
     const work = keyboard.isDown('KeyE') || hud.isWorkHeld();
-    const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, work, powerPriority: pendingPriority, callSupplyDrop: pendingSupplyDrop };
+    const input = { playerId: LOCAL_PLAYER, moveX, moveZ, ...steer, work, powerPriority: pendingPriority, callSupplyDrop: pendingSupplyDrop, solarBoost: pendingSolarBoost };
     pendingPriority = undefined; // one-off commands: send them once
     pendingSupplyDrop = false;
+    pendingSolarBoost = false;
     // The computer rivals decide their own moves inside step().
     events.push(...step(state, [input], BALANCE.sim.fixedDt));
     accumulator -= BALANCE.sim.fixedDt;
@@ -211,6 +244,7 @@ function frame(now: number) {
   if (steps === BALANCE.sim.maxStepsPerFrame) accumulator = 0; // fell behind: drop the backlog
 
   noteSurvival(events);
+  awardRound(events);
   view.update(state, events, dt);
   hud.update(state, events);
   factPopup.update(state, events);
@@ -231,4 +265,14 @@ function noteSurvival(events: GameEvent[]) {
     const base = me && findBase(state, me.baseId);
     if (base && base.status === 'active' && base.crew > 0) survivedDisaster = true;
   }
+}
+
+// The round just ended: add your coins and XP to your profile (once).
+function awardRound(events: GameEvent[]) {
+  if (reward || !events.some((e) => e.type === 'RoundEnded')) return;
+  const mine = state.round.results?.find((r) => r.playerId === LOCAL_PLAYER);
+  const me = findPlayer(state, LOCAL_PLAYER);
+  if (!mine || !me) return;
+  const earned = roundReward(mine, me.stars, myMods.coinMultiplier);
+  reward = { ...earned, ...profile.addReward(earned) };
 }
