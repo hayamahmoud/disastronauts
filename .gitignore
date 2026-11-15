@@ -24,4 +24,7 @@ venv/
 .idea/
 .vscode/
 
-docs/
+# Team docs stay local, except DATA.md (the data sources, for the judges).
+# `docs/*` (not `docs/`) so the ! exception below can work.
+docs/*
+!docs/DATA.md
