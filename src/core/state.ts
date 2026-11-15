@@ -5,6 +5,7 @@
 // from the terrain grid. 1 unit = 1 Roblox stud. Y is up.
 
 import type { BotPersonality, BuildingKind, DisasterKind, FlareClass, PickupKind, PowerPriority, ResourceKind, TaskKind } from '../config/balance';
+import type { Modifiers } from './modifiers';
 import type { RngState } from './rng';
 
 export interface Vec2 {
@@ -51,6 +52,15 @@ export interface PlayerInput {
   callSupplyDrop?: boolean;
   // True while the work key (E) is HELD: works on a big pickup (mini task) you stand next to.
   work?: boolean;
+  // Optional one-off command: use a Solar Boost power-up (key B).
+  solarBoost?: boolean;
+}
+
+// What a player looks like: equipped shop cosmetics, as catalog item ids
+// (null = the default look). Visual only; the sim never reads these.
+export interface Cosmetics {
+  trim: string | null; // suit trim color (boots, gloves, backpack)
+  flag: string | null; // a flag over the base
 }
 
 export type Cargo = Record<PickupKind, number>;
@@ -73,6 +83,12 @@ export interface PlayerState {
   missionsDone: number;
   supplyCooldown: number; // seconds until another supply drop can be called
   working: number | null; // id of the big pickup (mini task) you're working on right now
+  // Shop upgrades and power-ups (M6). The sim reads these numbers, never the items.
+  mods: Modifiers;
+  bubbles: number; // Shield Bubble charges left this round
+  solarBoosts: number; // Solar Boost charges left this round
+  solarBoost: { endsAt: number; overloaded: boolean } | null; // a boost running now
+  cosmetics: Cosmetics;
   bot: BotState | null; // null = a human; otherwise a computer rival's memory
 }
 
@@ -134,6 +150,7 @@ export interface BaseState {
   stored: Record<ResourceKind, number>;
   landerPowered: boolean;
   powerPriority: PowerPriority;
+  bubble: boolean; // a Shield Bubble is blocking the current solar flare
   // Net change per sol from buildings and crew (not counting pickups). For the HUD arrows.
   netPerSol: { power: number; lifeSupport: number };
 }

@@ -19,9 +19,14 @@ export function rollLightMinutes(state: GameState): number {
   return km / S.speedOfLightKmPerS / 60;
 }
 
-// Seconds a supply drop takes to arrive this game.
-export function supplyDropDelay(state: GameState): number {
-  return state.lightMinutes * S.secondsPerLightMinute;
+// Seconds a supply drop takes to arrive for this player (Express Supply Drop makes it shorter).
+export function supplyDropDelay(state: GameState, player: PlayerState): number {
+  return state.lightMinutes * S.secondsPerLightMinute * player.mods.supplyDropDelay;
+}
+
+// Power it costs this player to call Earth (Express Supply Drop costs more).
+export function supplyDropPowerCost(player: PlayerState): number {
+  return Math.round(S.powerCost * player.mods.supplyDropPowerCost);
 }
 
 // The player pressed "Call Earth".
@@ -32,11 +37,12 @@ export function requestSupplyDrop(state: GameState, player: PlayerState, events:
 
   if (!base || base.status !== 'active') return void deny('noBase');
   if (player.supplyCooldown > 0) return void deny('cooldown');
-  if (base.stored.power < S.powerCost) return void deny('noPower');
+  const cost = supplyDropPowerCost(player);
+  if (base.stored.power < cost) return void deny('noPower');
 
-  base.stored.power -= S.powerCost;
+  base.stored.power -= cost;
   player.supplyCooldown = S.cooldown;
-  const delay = supplyDropDelay(state);
+  const delay = supplyDropDelay(state, player);
   const ring = depositRadius(base) + S.landingOffset;
   const drop = {
     id: state.nextId++,

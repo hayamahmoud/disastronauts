@@ -363,6 +363,34 @@ export const BALANCE = {
     order: ['grower', 'shielder', 'balanced'],
   },
 
+  // One-round power-ups from the shop (M6). Each one keeps a trade-off, so
+  // there is never a "free" choice. GAME-BALANCE numbers.
+  powerups: {
+    // Shield Bubble: pops up by itself when the next solar flare hits and
+    // blocks ALL of its radiation for your base. Costs Power to switch on;
+    // with too little Power it fails and the charge is kept for the next flare.
+    bubblePowerCost: 30,
+    // Solar Boost: press B to make your solar panels work extra hard for a
+    // while. Afterwards they overheat and make LESS Power for a while.
+    boostSeconds: 30,
+    boostFactor: 2, // x2 solar Power during the boost
+    overloadSeconds: 30,
+    overloadFactor: 0.5, // half solar Power while the panels cool down
+  },
+
+  // Coins and XP earned at the end of a round (M6). Only earned in the game:
+  // the web version has no real money anywhere. GAME-BALANCE numbers.
+  progression: {
+    coinsForPlace: [60, 40, 25, 15], // 1st, 2nd, 3rd, 4th
+    coinsPerStar: 4, // every mission star
+    xpPerScorePoint: 0.1, // 1 XP for every 10 Colony Score points...
+    xpForPlaying: 20, // ...plus this much just for finishing a round
+    // XP needed to REACH each level: level 1 = 0 XP, level 2 = 100 XP, and so on.
+    levelXp: [0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200],
+    dailyRewardCoins: 50, // once per calendar day, from the shop
+    startingCoins: 100, // a new player can buy one small thing straight away
+  },
+
   // Camera is visual only, but it's a tunable number so it lives here too.
   camera: {
     // Low camera aimed above the player, so sky and far hills are on screen.

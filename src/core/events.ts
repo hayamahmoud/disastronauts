@@ -37,6 +37,12 @@ export type GameEvent =
   | { type: 'SupplyDropCalled'; playerId: string; dropId: number; landsIn: number; lightMinutes: number }
   | { type: 'SupplyDropDenied'; playerId: string; reason: 'cooldown' | 'noPower' | 'noBase' }
   | { type: 'SupplyDropLanded'; playerId: string; dropId: number; pos: Vec2 }
+  // Power-ups (M6)
+  | { type: 'ShieldBubbleUp'; playerId: string; baseId: string }
+  | { type: 'ShieldBubbleFailed'; playerId: string; baseId: string } // not enough Power
+  | { type: 'SolarBoostStarted'; playerId: string; seconds: number }
+  | { type: 'SolarBoostOverload'; playerId: string; seconds: number }
+  | { type: 'SolarBoostEnded'; playerId: string }
   // Round flow
   | { type: 'RoundCountdown'; secondsLeft: number } // lobby: 3, 2, 1…
   | { type: 'RoundStarted'; seconds: number }

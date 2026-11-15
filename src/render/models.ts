@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ASSETS, type AssetId, type PrimitivePart, type PrimitiveShape } from '../assets/manifest';
-import { RENDER_STYLE, THEME } from '../ui/theme';
+import { RENDER_STYLE, THEME, type ThemeColorKey } from '../ui/theme';
 
 const DEG = Math.PI / 180;
 const geometryCache = new Map<string, THREE.BufferGeometry>();
@@ -16,8 +16,12 @@ const materialCache = new Map<string, THREE.Material>();
 const gltfCache = new Map<string, Promise<GLTF | null>>();
 const loader = new GLTFLoader();
 
-// Create a model for an asset ID. `teamColor` paints parts marked 'team'.
-export function createModel(id: AssetId, teamColor = 0xffffff): THREE.Group {
+// Swap some theme colors on one model, e.g. { accent: gold } for a suit trim cosmetic.
+export type Recolor = Partial<Record<ThemeColorKey, number>>;
+
+// Create a model for an asset ID. `teamColor` paints parts marked 'team';
+// `recolor` swaps theme colors (placeholder models only, for now).
+export function createModel(id: AssetId, teamColor = 0xffffff, recolor: Recolor = {}): THREE.Group {
   const entry = ASSETS[id];
   const root = new THREE.Group();
   root.name = id;
@@ -28,7 +32,7 @@ export function createModel(id: AssetId, teamColor = 0xffffff): THREE.Group {
   inner.rotation.y = entry.rotationYOffset * DEG;
   inner.scale.setScalar(entry.scale);
   for (const part of entry.placeholder) {
-    const mesh = createPart(part, teamColor);
+    const mesh = createPart(part, teamColor, recolor);
     const pivot = part.limb && entry.limbPivots?.[part.limb];
     if (part.limb && pivot) {
       // Limb parts hang from a pivot group (hip/shoulder) so they can swing.
@@ -81,8 +85,8 @@ function loadGltf(file: string): Promise<GLTF | null> {
   return p;
 }
 
-function createPart(part: PrimitivePart, teamColor: number): THREE.Mesh {
-  const color = part.color === 'team' ? teamColor : THEME[part.color];
+function createPart(part: PrimitivePart, teamColor: number, recolor: Recolor): THREE.Mesh {
+  const color = part.color === 'team' ? teamColor : (recolor[part.color] ?? THEME[part.color]);
   const mesh = new THREE.Mesh(getGeometry(part.shape, part.size), getMaterial(color, part));
   mesh.position.set(part.pos[0], part.pos[1], part.pos[2]);
   if (part.rot) mesh.rotation.set(part.rot[0] * DEG, part.rot[1] * DEG, part.rot[2] * DEG);

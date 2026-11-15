@@ -65,7 +65,8 @@ export type AssetId =
   | 'task_regolith'
   | 'task_solar'
   | 'wreck'
-  | 'supply_drop';
+  | 'supply_drop'
+  | 'flag';
 
 // The "Cozy Outpost" look (picked at the D1 design checkpoint, see docs/ART_SPEC.md).
 export const ASSETS: Record<AssetId, AssetEntry> = {
@@ -304,6 +305,19 @@ export const ASSETS: Record<AssetId, AssetEntry> = {
       p('torus', [9, 0.3, 9], [0, 10.6, 0], 'accent'),
     ],
   },
+  // A shop cosmetic (M6): a flag next to the lander. 'team' = the flag's color.
+  // The cloth hangs toward -X from the pole, with a star on it.
+  flag: {
+    scale: 1,
+    rotationYOffset: 0,
+    placeholder: [
+      p('cylinder', [1.2, 0.3, 1.2], [0, 0.15, 0], 'hullDark'),
+      p('cylinder', [0.18, 8.5, 0.18], [0, 4.25, 0], 'hullDark'),
+      p('sphere', [0.45, 0.45, 0.45], [0, 8.6, 0], 'windowGlow', { glow: true }),
+      p('roundedBox', [3.2, 2, 0.15], [-1.65, 7.3, 0], 'team'),
+      p('sphere', [0.7, 0.7, 0.25], [-1.65, 7.3, 0], 'hull'),
+    ],
+  },
 };
 
 // Maps game concepts to asset IDs, so the renderer never hardcodes them.
@@ -356,7 +370,13 @@ export type UiIconId =
   | 'icon_wreck'
   | 'icon_trophy'
   | 'icon_timer'
-  | 'icon_fact';
+  | 'icon_fact'
+  | 'icon_coin'
+  | 'icon_xp'
+  | 'icon_shop'
+  | 'icon_bubble'
+  | 'icon_boost'
+  | 'icon_gift';
 
 export interface UiIconEntry {
   file?: string;
@@ -389,6 +409,13 @@ export const UI_ICONS: Record<UiIconId, UiIconEntry> = {
   icon_trophy: { emoji: '🏆' }, // round winner
   icon_timer: { emoji: '⏱️' }, // round clock
   icon_fact: { emoji: '💡' }, // "What you learned" on the podium
+  // Shop and progression (M6)
+  icon_coin: { emoji: '🪙' },
+  icon_xp: { emoji: '✨' }, // experience points / level
+  icon_shop: { emoji: '🛒' },
+  icon_bubble: { emoji: '🫧' }, // Shield Bubble power-up
+  icon_boost: { emoji: '🔆' }, // Solar Boost power-up
+  icon_gift: { emoji: '🎁' }, // daily reward
 };
 
 // The badge floating over each pickup shows what it's FOR, using the same icon

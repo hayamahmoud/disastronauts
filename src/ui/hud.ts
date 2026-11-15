@@ -21,7 +21,7 @@ import { MISSION_PICKUP } from '../core/missions';
 import { shieldCoverage, shieldNeeded, shieldTotal, storageCapacity } from '../core/resources';
 import type { BaseState, GameState, MissionState, PlayerState } from '../core/state';
 import { distance, findBase, findPlayer } from '../core/state';
-import { supplyDropDelay } from '../core/supplyDrop';
+import { supplyDropDelay, supplyDropPowerCost } from '../core/supplyDrop';
 import { findTaskSite, hasRoomFor, nearestTaskSite, taskProgress } from '../core/tasks';
 import { canAbsorb } from '../core/wrecks';
 import { niceDate, type FlareSet } from '../services/DataService';
@@ -89,6 +89,7 @@ export function createHud(
   data: { flares: FlareSet; realMap: boolean },
   onTogglePriority: () => void,
   onCallEarth: () => void,
+  onSolarBoost: () => void,
 ): Hud {
   // --- Top left: the game's name ---
   // Full-screen tint during a disaster (added first, so it sits under everything else).
@@ -159,6 +160,7 @@ export function createHud(
   keyGroup(['P'], 'Power');
   keyGroup(['Space'], 'Call Earth');
   keyGroup(['E'], 'Hold: Work');
+  keyGroup(['B'], 'Solar Boost');
   root.appendChild(keys);
 
   // --- Bottom middle: the mini task prompt with its work bar ---
@@ -181,6 +183,19 @@ export function createHud(
     task.addEventListener(type, () => (workHeld = false));
   }
   task.addEventListener('contextmenu', (e) => e.preventDefault()); // long-press on phones
+
+  // --- Bottom right, above Call Earth: the power-ups you packed from the shop ---
+  // Hidden when you have none. Shield Bubble switches on by itself at a flare.
+  const powerups = el('div', 'hud-powerups');
+  root.appendChild(powerups);
+  const bubbleBadge = el('div', 'hud-bubble');
+  bubbleBadge.title = 'Shield Bubble: when a solar flare hits, it protects your whole crew. It uses Power when it switches on.';
+  powerups.appendChild(bubbleBadge);
+  const boostButton = createButton(powerups, onSolarBoost);
+  boostButton.classList.add('hud-boost');
+  boostButton.title =
+    `Solar Boost (Key: B): your solar panels make ${BALANCE.powerups.boostFactor}× power for ${BALANCE.powerups.boostSeconds}s. ` +
+    `Then they overheat and make less for ${BALANCE.powerups.overloadSeconds}s.`;
 
   // --- Bottom right, above Power-first: call Earth for a supply drop ---
   const callButton = createButton(root, onCallEarth);
@@ -218,6 +233,7 @@ export function createHud(
   let lastCall = '';
   let lastOverlay = '';
   let lastTask = '';
+  let lastPowerups = '';
   let shownOpening = false;
 
   return {
@@ -240,6 +256,7 @@ export function createHud(
       updateAlert(state);
       updateTask(state, me);
       updateCallButton(me, base, state);
+      updatePowerups(me, base, state);
 
       if (base) {
         updateChips(state, base);
@@ -306,12 +323,22 @@ export function createHud(
         } else if (e.type === 'SupplyDropCalled' && e.playerId === localPlayerId) {
           message.show(`📡 Message sent! Radio takes ${e.lightMinutes.toFixed(1)} minutes to reach Earth…`, 4);
         } else if (e.type === 'SupplyDropDenied' && e.playerId === localPlayerId) {
-          const why = { cooldown: 'Earth is still packing the next one.', noPower: `The radio needs ${BALANCE.supplyDrop.powerCost} ⚡.`, noBase: 'You need a base first.' };
+          const why = { cooldown: 'Earth is still packing the next one.', noPower: `The radio needs ${supplyDropPowerCost(me)} ⚡.`, noBase: 'You need a base first.' };
           message.show(why[e.reason], 2.5);
         } else if (e.type === 'SupplyDropLanded' && e.playerId === localPlayerId) {
           message.show('📦 Your supply drop landed near your base!', 3);
         } else if (e.type === 'TaskCompleted' && e.playerId === localPlayerId) {
           message.show(`${TASK[e.kind].done} +${e.items} ${TASK_EMOJI[e.kind]}`, 2.5);
+        } else if (e.type === 'ShieldBubbleUp' && e.playerId === localPlayerId) {
+          message.show(`🫧 Shield Bubble up! Your crew is safe from this flare (-${BALANCE.powerups.bubblePowerCost} ⚡).`, 4);
+        } else if (e.type === 'ShieldBubbleFailed' && e.playerId === localPlayerId) {
+          message.show(`🫧 Not enough Power for your Shield Bubble! It needs ${BALANCE.powerups.bubblePowerCost} ⚡.`, 4);
+        } else if (e.type === 'SolarBoostStarted' && e.playerId === localPlayerId) {
+          message.show(`🔆 Solar Boost! Extra solar power for ${e.seconds}s.`, 3);
+        } else if (e.type === 'SolarBoostOverload' && e.playerId === localPlayerId) {
+          message.show(`🥵 Your panels overheated! Less solar power for ${e.seconds}s.`, 3.5);
+        } else if (e.type === 'SolarBoostEnded' && e.playerId === localPlayerId) {
+          message.show('Your solar panels have cooled down.', 2.5);
         } else if (e.type === 'RoundEndingSoon') {
           message.show(`⏱️ ${e.secondsLeft} seconds left! Make every point count!`, 4);
         }
@@ -439,15 +466,15 @@ export function createHud(
 
   // "📡 Call Earth (20⚡)", or how long until the drop arrives / you can call again.
   function updateCallButton(me: PlayerState, base: BaseState | undefined, state: GameState) {
-    const S = BALANCE.supplyDrop;
+    const cost = supplyDropPowerCost(me);
     const drop = state.supplyDrops.find((d) => d.playerId === me.id);
     let label: string;
     let ready = false;
     if (drop) label = `Signal travelling… ${Math.ceil(drop.landsAt - state.time)}s`;
     else if (me.supplyCooldown > 0) label = `Next call in ${Math.ceil(me.supplyCooldown)}s`;
     else {
-      label = `Call Earth (${S.powerCost}⚡)`;
-      ready = !!base && base.status === 'active' && base.stored.power >= S.powerCost;
+      label = `Call Earth (${cost}⚡)`;
+      ready = !!base && base.status === 'active' && base.stored.power >= cost;
     }
     const key = `${label}|${ready}`;
     if (key === lastCall) return;
@@ -456,7 +483,26 @@ export function createHud(
     callButton.replaceChildren(createIcon('icon_radio'), el('span', '', ` ${label}`));
     callButton.title =
       `Ask Earth for a supply drop (Key: Space). Radio is not instant: Earth and Mars are so far apart that ` +
-      `your message takes ${supplyDropDelay(state).toFixed(1)} minutes to arrive this game (here: 1 minute = 1 second).`;
+      `your message takes ${supplyDropDelay(state, me).toFixed(1)} minutes to arrive this game (here: 1 minute = 1 second).`;
+  }
+
+  // Shield Bubble badge and Solar Boost button (only the ones you packed).
+  function updatePowerups(me: PlayerState, base: BaseState | undefined, state: GameState) {
+    const bubble = base?.bubble ? 'on' : me.bubbles > 0 ? 'ready' : '';
+    const b = me.solarBoost;
+    const left = b ? Math.ceil(b.endsAt - state.time) : 0;
+    const boost = b ? `${b.overloaded ? 'hot' : 'on'}|${left}` : me.solarBoosts > 0 ? `ready|${me.solarBoosts}` : '';
+    const key = `${bubble}|${boost}`;
+    if (key === lastPowerups) return;
+    lastPowerups = key;
+    powerups.classList.toggle('is-hidden', !bubble && !boost);
+    bubbleBadge.classList.toggle('is-hidden', !bubble);
+    bubbleBadge.classList.toggle('is-on', bubble === 'on');
+    bubbleBadge.replaceChildren(createIcon('icon_bubble'), el('span', '', bubble === 'on' ? ' Bubble ON' : ' Bubble ready'));
+    boostButton.classList.toggle('is-hidden', !boost);
+    boostButton.classList.toggle('is-waiting', !!b);
+    const label = !b ? `Solar Boost ×${me.solarBoosts}` : b.overloaded ? `Overheated ${left}s` : `Boosting ${left}s`;
+    boostButton.replaceChildren(createIcon('icon_boost'), el('span', '', ` ${label}`));
   }
 
   // One helmet per crew member; the sick ones are the last few.

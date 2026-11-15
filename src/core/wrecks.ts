@@ -62,6 +62,7 @@ function wreckBase(state: GameState, base: BaseState, events: GameEvent[]): void
   base.sick = 0;
   base.health = 0;
   base.landerPowered = false;
+  base.bubble = false;
   base.netPerSol = { power: 0, lifeSupport: 0 };
   events.push({ type: 'BaseWrecked', baseId: base.id, playerId: base.ownerId, wreckId, salvage });
 }

@@ -9,12 +9,14 @@ import { updateDayNight } from './dayNight';
 import { setupDisasters, updateDisasters, walkSpeedFactor } from './disasters';
 import type { GameEvent } from './events';
 import { updateMissions } from './missions';
+import { defaultModifiers, type Modifiers } from './modifiers';
 import { moveRover } from './movement';
 import { spawnInitialPickups, updateDeposits, updatePickups } from './pickups';
+import { updatePowerups, useSolarBoost } from './powerups';
 import { updateResources } from './resources';
 import { createRng, rngNext } from './rng';
 import { createRound, updateLobby, updateRoundTimer } from './round';
-import type { BaseState, FlareRecord, GameState, PlayerInput, PlayerState, TerrainGrid } from './state';
+import type { BaseState, Cosmetics, FlareRecord, GameState, PlayerInput, PlayerState, TerrainGrid } from './state';
 import { emptyCargo, findBase } from './state';
 import { requestSupplyDrop, rollLightMinutes, updateSupplyDrops } from './supplyDrop';
 import { holdStill, spawnInitialTaskSites, updateTaskSites, updateWorking } from './tasks';
@@ -25,6 +27,8 @@ export interface PlayerSetup {
   id: string;
   name: string;
   bot?: BotPersonality; // set = a computer rival with this personality
+  mods?: Modifiers; // shop upgrades and power-ups for this round (default: none)
+  cosmetics?: Cosmetics; // equipped shop cosmetics (visual only)
 }
 
 export interface GameSetup {
@@ -69,6 +73,7 @@ export function createGame(setup: GameSetup): GameState {
 
   setup.players.forEach((ps, index) => {
     const basePos = pickBaseSpawn(state);
+    const mods = ps.mods ?? defaultModifiers();
     const base: BaseState = {
       id: 'base_' + ps.id,
       ownerId: ps.id,
@@ -84,6 +89,7 @@ export function createGame(setup: GameSetup): GameState {
       stored: { ...BALANCE.resources.start },
       landerPowered: true,
       powerPriority: 'greenhouse',
+      bubble: false,
       netPerSol: { power: 0, lifeSupport: 0 },
     };
     const player: PlayerState = {
@@ -103,6 +109,11 @@ export function createGame(setup: GameSetup): GameState {
       missionsDone: 0,
       supplyCooldown: 0,
       working: null,
+      mods,
+      bubbles: mods.flareBubbles,
+      solarBoosts: mods.solarBoosts,
+      solarBoost: null,
+      cosmetics: ps.cosmetics ?? { trim: null, flag: null },
       bot: ps.bot ? createBotState(ps.bot) : null,
     };
     state.bases.push(base);
@@ -136,10 +147,11 @@ export function step(state: GameState, inputs: PlayerInput[], dt: number): GameE
     const input = player.bot ? botInput(state, player, dt) : findInput(inputs, player.id);
     // Holding the work key next to a big pickup: stand still and work on it.
     if (updateWorking(state, player, input, events)) holdStill(player, state);
-    else moveRover(player, input, state.terrain, dt, walkSpeedFactor(state));
+    else moveRover(player, input, state.terrain, dt, walkSpeedFactor(state) * player.mods.roverSpeed);
     applyCommands(state, player, input, events);
   }
   updateDisasters(state, events);
+  updatePowerups(state, events); // Shield Bubbles react to a flare starting
   updateTaskSites(state, dt, events);
   updatePickups(state, dt, events);
   updateDeposits(state, events);
@@ -162,6 +174,7 @@ function applyCommands(state: GameState, player: PlayerState, input: PlayerInput
   const base = findBase(state, player.baseId);
   if (input.powerPriority && base) base.powerPriority = input.powerPriority;
   if (input.callSupplyDrop) requestSupplyDrop(state, player, events);
+  if (input.solarBoost) useSolarBoost(state, player, events);
 }
 
 function findInput(inputs: PlayerInput[], playerId: string): PlayerInput | undefined {

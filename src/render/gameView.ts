@@ -14,10 +14,11 @@ import { BUILDING_ASSET, PICKUP_ASSET, PICKUP_ICON, TASK_ASSET, UI_ICONS } from 
 import type { PickupKind } from '../config/balance';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { RENDER_STYLE, THEME } from '../ui/theme';
+import { RENDER_STYLE, THEME, type ThemeColorKey } from '../ui/theme';
 import { createDisasterFx, createLandingMarker, createShieldDome } from './disasterFx';
 import { animateCharacter, createModel } from './models';
 import { createTerrainMesh } from './terrainMesh';
+import { findItem } from '../services/catalog';
 
 export type CameraMode = 'follow' | 'topDown';
 
@@ -245,6 +246,13 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
         group.add(ring);
         const landerMarker = createMarker(13);
         group.add(landerMarker);
+        // Shop cosmetic: the owner's flag, next to the lander.
+        const flagColor = owner && cosmeticColor(owner.cosmetics.flag);
+        if (flagColor !== undefined) {
+          const flag = createModel('flag', flagColor);
+          flag.position.set(-5, 0, 3);
+          group.add(flag);
+        }
         const dome = createShieldDome();
         group.add(dome);
         scene.add(group);
@@ -256,11 +264,14 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
       view.group.visible = base.status === 'active';
       view.ring.scale.setScalar(depositRadius(base));
       // Shield bubble during a flare: more solid = better shielded.
+      // A Shield Bubble power-up shows as a full, golden bubble.
       const flare = fx.flareAmount();
       view.dome.visible = flare > 0.01;
       if (view.dome.visible) {
         view.dome.scale.setScalar(depositRadius(base) * 0.85);
-        (view.dome.material as THREE.ShaderMaterial).uniforms.opacity.value = flare * (0.3 + 0.7 * flareCoverage(base, s.disaster?.flareClass ?? null));
+        const u = (view.dome.material as THREE.ShaderMaterial).uniforms;
+        u.color.value.setHex(base.bubble ? THEME.bubbleDome : THEME.shieldDome);
+        u.opacity.value = flare * (base.bubble ? 1 : 0.3 + 0.7 * flareCoverage(base, s.disaster?.flareClass ?? null));
       }
 
       for (const b of base.buildings) {
@@ -329,7 +340,9 @@ export function createGameView(container: HTMLElement, state: GameState, localPl
     for (const p of s.players) {
       let rover = rovers.get(p.id);
       if (!rover) {
-        rover = createModel('astronaut', teamColor(p));
+        // Shop cosmetic: a suit trim recolors the boots, gloves and backpack.
+        const trim = cosmeticColor(p.cosmetics.trim);
+        rover = createModel('astronaut', teamColor(p), trim === undefined ? {} : { accent: trim });
         rover.rotation.order = 'YXZ'; // turn first, then tilt with the ground
         scene.add(rover);
         rovers.set(p.id, rover);
@@ -661,6 +674,12 @@ function createGroundRing(color: number, innerRadius: number, opacity: number, d
   ring.renderOrder = 1;
   (ring.material as THREE.Material).userData.outlineParameters = { visible: false };
   return ring;
+}
+
+// The THEME color a cosmetic item paints with (undefined = none equipped).
+function cosmeticColor(itemId: string | null): number | undefined {
+  const look = findItem(itemId)?.look;
+  return look && look in THEME ? (THEME[look as ThemeColorKey] as number) : undefined;
 }
 
 // A dome of tiny dots high above the player.
