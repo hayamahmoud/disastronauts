@@ -1,11 +1,13 @@
 // The podium: shown when the round ends. Top 3 on the steps (2nd, 1st, 3rd),
 // your place and how your score was made, the full list, one "What you
-// learned" fact, and buttons to play again or go back to the menu.
+// learned" fact, a real rover photo card if you earned one (won, or
+// survived a disaster), and buttons: play again, NASA data, menu.
 // Built once from state.round.results (saved by the sim when time ran out).
 
 import type { GameState, Standing } from '../core/state';
+import { photoForRound } from '../services/DataService';
 import { createIcon, el } from './components';
-import { factForRound } from './roundFacts';
+import { factForRound } from './facts';
 import { teamCss } from './theme';
 
 export interface Podium {
@@ -19,6 +21,8 @@ export function createPodium(
   localPlayerId: string,
   onPlayAgain: () => void,
   onMenu: () => void,
+  onData: () => void,
+  survivedDisaster: () => boolean, // did your base make it through a disaster this round?
 ): Podium {
   let shown = false;
 
@@ -83,6 +87,26 @@ export function createPodium(
     }
     card.appendChild(list);
 
+    // A real Perseverance photo, if you earned it.
+    const won = me?.rank === 1;
+    const photo = photoForRound(state.seed);
+    if (photo && (won || survivedDisaster())) {
+      const box = el('figure', 'podium-photo');
+      const head = el('div', 'podium-photo-head', won ? '📷 Winner’s reward: a real photo from Mars!' : '📷 You survived a disaster! Reward: a real photo from Mars!');
+      const img = el('img');
+      img.src = photo.imageUrl;
+      img.alt = photo.caption;
+      img.loading = 'lazy';
+      img.onerror = () => img.remove(); // offline: keep the caption and credit
+      const caption = el('figcaption', 'podium-photo-caption', photo.caption);
+      const credit = el('a', 'podium-photo-credit', `${photo.rover} rover, sol ${photo.sol} (${photo.camera}). Credit: ${photo.credit}`);
+      credit.href = photo.pageUrl;
+      credit.target = '_blank';
+      credit.rel = 'noopener';
+      box.append(head, img, caption, credit);
+      card.appendChild(box);
+    }
+
     // One real NASA fact to take away.
     const fact = factForRound(state.seed);
     const factBox = el('div', 'podium-fact');
@@ -100,10 +124,13 @@ export function createPodium(
     const again = el('button', 'button podium-button is-main', 'Play again');
     again.type = 'button';
     again.addEventListener('click', onPlayAgain);
+    const data = el('button', 'button podium-button', '🛰️ NASA data');
+    data.type = 'button';
+    data.addEventListener('click', onData);
     const menu = el('button', 'button podium-button', 'Menu');
     menu.type = 'button';
     menu.addEventListener('click', onMenu);
-    buttons.append(again, menu);
+    buttons.append(again, data, menu);
     card.appendChild(buttons);
     window.setTimeout(() => again.focus(), 0);
 

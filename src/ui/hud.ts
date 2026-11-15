@@ -22,6 +22,7 @@ import type { BaseState, GameState, MissionState, PlayerState } from '../core/st
 import { distance, findBase, findPlayer } from '../core/state';
 import { supplyDropDelay } from '../core/supplyDrop';
 import { canAbsorb } from '../core/wrecks';
+import { niceDate, type FlareSet } from '../services/DataService';
 import { createBadge, createButton, createChip, createIcon, createMessage, el, levelFor } from './components';
 
 // Disaster names and one-line "what it does", in kid words.
@@ -72,7 +73,7 @@ const EXPLAIN = {
 export function createHud(
   root: HTMLElement,
   localPlayerId: string,
-  terrainIsPlaceholder: boolean,
+  data: { flares: FlareSet; realMap: boolean },
   onTogglePriority: () => void,
   onCallEarth: () => void,
 ): Hud {
@@ -155,9 +156,18 @@ export function createHud(
   priorityButton.classList.add('hud-priority');
   priorityButton.title = 'When Power runs low, this building stays on and the other switches off. (Key: P)';
 
-  if (terrainIsPlaceholder) {
-    createBadge(root, 'Placeholder map: real Mars terrain coming soon', { right: '14px', bottom: '130px' });
+  // --- Bottom right, above Call Earth: where the space weather comes from ---
+  // "LIVE" only when today's flares really downloaded; otherwise the archived dates.
+  const dataBadge = createBadge(root, '', {});
+  dataBadge.classList.add('hud-data');
+  const f = data.flares;
+  if (f.live) {
+    dataBadge.classList.add('is-live');
+    dataBadge.append(el('span', 'data-live-dot'), el('b', '', 'LIVE'), ` NASA space weather (last ${BALANCE.liveData.donkiDays} days)`);
+  } else {
+    dataBadge.textContent = `Archived NASA flares from ${niceDate(f.startDate)} to ${niceDate(f.endDate)}`;
   }
+  if (!data.realMap) dataBadge.append(el('br'), 'Placeholder map: the real Jezero map did not load');
 
   const message = createMessage(root);
   // Same icons as the badges over pickups and the HUD chips.
@@ -339,6 +349,8 @@ export function createHud(
       const flare = now.flareClass ? ` ${FLARE_NAME[now.flareClass]}` : '';
       title = [d.icon, `${d.name}!${flare} ${left}s`];
       text = d.does;
+      // Each flare replays a real one from NASA DONKI: say which.
+      if (now.realFlare) text += `\nReal flare: ${now.realFlare.classType}, seen by NASA on ${niceDate(now.realFlare.peakTime)}.`;
       key = `now|${title[1]}`;
     } else if (next && next.warned) {
       const d = DISASTER[next.kind];

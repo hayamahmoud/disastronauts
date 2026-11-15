@@ -1,4 +1,5 @@
 import type { GameAudio } from '../audio/gameAudio';
+import { openDataScreen } from './dataScreen';
 
 export interface LaunchOptions {
   players: number;
@@ -13,6 +14,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
     <div class="start-artboard">
       <img class="start-art" src="${import.meta.env.BASE_URL}ui/starting-page-launch-bg.png" alt="Disastronauts: a cozy illustrated Mars outpost under a starry sky, with an astronaut and a rocket ready for launch." draggable="false">
       <button class="start-settings art-hit" aria-label="Settings and controls"></button>
+      <button class="start-data">🛰️ Real NASA Data</button>
       <section class="start-selector players-selector" aria-label="Players">
         <button class="art-hit previous" aria-label="Fewer players"></button>
         <output class="selector-value" aria-live="polite">4</output>
@@ -72,6 +74,7 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
   effectsSlider.onchange = () => audio.click();
   mute.onchange = () => audio.setMuted(mute.checked);
   click('.start-settings', () => { syncAudio(); dialog.showModal(); });
+  click('.start-data', () => openDataScreen({ flares: null, realMap: null }));
   click('.settings-close', () => dialog.close());
   click('.settings-done', () => dialog.close());
   const launch = screen.querySelector<HTMLButtonElement>('.start-launch')!;

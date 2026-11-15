@@ -4,7 +4,7 @@
 import { BALANCE, type DisasterKind, type PowerPriority } from './config/balance';
 import type { GameEvent } from './core/events';
 import { createGame, step } from './core/simulation';
-import { findBase, findPlayer } from './core/state';
+import { findBase, findPlayer, type TerrainGrid } from './core/state';
 import { createKeyboardInput } from './input/keyboard';
 import { createGameView } from './render/gameView';
 import { createHud, type Hud } from './ui/hud';
@@ -15,6 +15,9 @@ import { createMinimap } from './ui/minimap';
 import { createScoreboard, type Scoreboard } from './ui/scoreboard';
 import { createLobby, type Lobby } from './ui/lobby';
 import { createPodium, type Podium } from './ui/podium';
+import { loadFlares, loadTerrain, type FlareSet } from './services/DataService';
+import { openDataScreen, wantsLiveSpaceWeather } from './ui/dataScreen';
+import { createFactPopup, type FactPopup } from './ui/factPopup';
 
 const LOCAL_PLAYER = 'p1';
 const audio = createGameAudio(LOCAL_PLAYER);
@@ -35,13 +38,26 @@ let minimap: ReturnType<typeof createMinimap>;
 let scoreboard: Scoreboard;
 let lobby: Lobby;
 let podium: Podium;
+let factPopup: FactPopup;
 let playing = false;
 let playerCount = 4;
 let shadows = true;
 
-const menu = createStartScreen((options) => {
+// Real NASA data, loaded once when you press Start and reused for "Play again".
+// The map is bundled; the flares are bundled too unless "Today's space
+// weather" is on, in which case we ask NASA first (with a time limit).
+let terrain: TerrainGrid | null = null;
+let flareSet: FlareSet;
+let survivedDisaster = false; // for the rover photo reward on the podium
+
+const menu = createStartScreen(async (options) => {
   playerCount = options.players;
   shadows = menu.shadows();
+  terrain = loadTerrain(); // null = use the placeholder crater
+  const live = wantsLiveSpaceWeather();
+  const ui = document.getElementById('ui')!;
+  if (live) ui.replaceChildren(Object.assign(document.createElement('div'), { className: 'message', textContent: '📡 Asking NASA for today’s space weather…' }));
+  flareSet = await loadFlares(live);
   startRound(firstSeed);
 }, audio);
 
@@ -62,15 +78,26 @@ function startRound(seed: number) {
       const bot = order[(i - 1) % order.length];
       return { id: `p${i + 1}`, name: BALANCE.bots.personalities[bot].name, bot };
     }),
+    ...(terrain ? { terrain } : {}),
+    flares: flareSet.flares,
     // Dev only: ?round=60 for a 1-minute round, ?lobby=0 to skip the countdown.
     ...devRoundOverrides(),
   });
   view = createGameView(document.getElementById('game')!, state, LOCAL_PLAYER, shadows);
-  hud = createHud(ui, LOCAL_PLAYER, state.terrain.isPlaceholder, togglePowerPriority, callEarth);
+  hud = createHud(ui, LOCAL_PLAYER, { flares: flareSet, realMap: !state.terrain.isPlaceholder }, togglePowerPriority, callEarth);
   minimap = createMinimap(ui, LOCAL_PLAYER, () => view!.getMapYaw());
   scoreboard = createScoreboard(ui, LOCAL_PLAYER);
   lobby = createLobby(ui, state, LOCAL_PLAYER);
-  podium = createPodium(ui, LOCAL_PLAYER, () => { audio.click(); startRound(randomSeed()); }, backToMenu);
+  factPopup = createFactPopup(ui, LOCAL_PLAYER);
+  podium = createPodium(
+    ui,
+    LOCAL_PLAYER,
+    () => { audio.click(); startRound(randomSeed()); },
+    backToMenu,
+    () => { audio.click(); openDataScreen({ flares: flareSet, realMap: !state.terrain.isPlaceholder }); },
+    () => survivedDisaster,
+  );
+  survivedDisaster = false;
   pendingPriority = undefined;
   pendingSupplyDrop = false;
   if (import.meta.env.DEV) setUpDevHelpers();
@@ -135,9 +162,11 @@ function setUpDevHelpers() {
   const kind = params.get('disaster');
   if (kind && kind in BALANCE.disasters.weights) {
     const flare = kind === 'solarFlare';
+    const realX = flare ? (state.flares.find((f) => f.classLetter === 'X') ?? null) : null;
     state.nextDisaster = {
       kind: kind as DisasterKind,
       flareClass: flare ? 'X' : null,
+      realFlare: realX && { id: realX.id, classType: realX.classType, peakTime: realX.peakTime },
       strength: flare ? BALANCE.disasters.solarFlare.classes.X.strength : 1,
       startsAt: 10,
       warned: false,
@@ -179,8 +208,10 @@ function frame(now: number) {
   }
   if (steps === BALANCE.sim.maxStepsPerFrame) accumulator = 0; // fell behind: drop the backlog
 
+  noteSurvival(events);
   view.update(state, events, dt);
   hud.update(state, events);
+  factPopup.update(state, events);
   audio.update(events, state.players[0].baseId);
   minimap.update(state);
   scoreboard.update(state);
@@ -189,3 +220,13 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+// A disaster ended and your base is still standing with crew: you survived it!
+function noteSurvival(events: GameEvent[]) {
+  for (const e of events) {
+    if (e.type !== 'DisasterEnded') continue;
+    const me = findPlayer(state, LOCAL_PLAYER);
+    const base = me && findBase(state, me.baseId);
+    if (base && base.status === 'active' && base.crew > 0) survivedDisaster = true;
+  }
+}

@@ -4,6 +4,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   // Three.js alone is ~600 kB, so raise the "big file" warning threshold.
   build: { chunkSizeWarningLimit: 900 },
+
+  envPrefix: 'VITE_',
   test: {
     include: ['tests/**/*.test.ts'],
     environment: 'node', // core logic needs no browser

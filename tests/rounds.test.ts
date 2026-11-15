@@ -181,7 +181,7 @@ describe('bots', () => {
 
   it('cautious bots go home on a disaster warning; the grower keeps going', () => {
     const s = fullGame(4, { lobbySeconds: 0 });
-    s.nextDisaster = { kind: 'solarFlare', flareClass: 'M', strength: 1, startsAt: 5, warned: true };
+    s.nextDisaster = { kind: 'solarFlare', flareClass: 'M', realFlare: null, strength: 1, startsAt: 5, warned: true };
     const grower = s.players[1];
     const shielder = s.players[2];
     shielder.pos = { x: s.bases[2].pos.x + 60, z: s.bases[2].pos.z }; // out on the map

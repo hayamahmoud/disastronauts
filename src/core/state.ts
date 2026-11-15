@@ -18,7 +18,20 @@ export interface TerrainGrid {
   size: number; // points per side
   worldSize: number; // studs per side
   heights: number[];
-  isPlaceholder: boolean; // true until real Mars Trek data is loaded
+  isPlaceholder: boolean; // true = the made-up crater (used if the real map can't load)
+}
+
+// A real solar flare from NASA's DONKI database that an in-game flare replays.
+export interface RealFlare {
+  id: string; // DONKI flare id
+  classType: string; // e.g. "X1.0"
+  peakTime: string; // when it peaked (UTC), e.g. "2024-05-14T16:51Z"
+}
+
+// One entry of the flare list given to createGame (src/data/flares.json).
+// classLetter picks the game's flare class (C, M or X).
+export interface FlareRecord extends RealFlare {
+  classLetter: FlareClass;
 }
 
 export interface PlayerInput {
@@ -137,6 +150,7 @@ export interface PickupState {
 export interface ActiveDisaster {
   kind: DisasterKind;
   flareClass: FlareClass | null; // only for solar flares
+  realFlare: RealFlare | null; // the real flare it replays (null = no flare data)
   strength: number; // 1 = normal
   startedAt: number;
   endsAt: number;
@@ -146,6 +160,7 @@ export interface ActiveDisaster {
 export interface PlannedDisaster {
   kind: DisasterKind;
   flareClass: FlareClass | null;
+  realFlare: RealFlare | null;
   strength: number;
   startsAt: number;
   warned: boolean;
@@ -212,6 +227,9 @@ export interface GameState {
   disastersEnabled: boolean;
   disaster: ActiveDisaster | null;
   nextDisaster: PlannedDisaster | null;
+  // Real NASA flares replayed in order, one per in-game flare (empty = random classes).
+  flares: FlareRecord[];
+  nextFlareIndex: number;
   wrecks: WreckState[];
   supplyDrops: SupplyDropState[];
   // How long a radio signal takes between Earth and Mars this game, in minutes.

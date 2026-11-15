@@ -469,6 +469,7 @@ body {
   font-size: var(--font-size-l);
 }
 .hud-alert-text {
+  white-space: pre-line; /* the real-flare line goes under the main text */
   font-size: var(--font-size-s);
 }
 
@@ -755,6 +756,7 @@ body {
 }
 .podium-buttons {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-m);
   margin-top: var(--space-m);
@@ -765,6 +767,187 @@ body {
 .podium-button.is-main {
   background: var(--color-orange);
   color: var(--color-cream);
+}
+
+/* ---------- Real NASA data (M5) ---------- */
+
+/* "Real NASA fact!" pop-up: left side, under the mission card. */
+.fact-popup {
+  position: absolute;
+  left: 14px;
+  top: 250px;
+  width: 240px;
+  padding: 10px 14px 12px;
+  border: 3px solid var(--color-orange);
+  border-radius: var(--radius-m);
+  background: var(--color-cream);
+  color: var(--color-plum-solid);
+  box-shadow: 0 4px 0 var(--color-shadow);
+  font-size: var(--font-size-s);
+  pointer-events: auto; /* the link and × can be clicked */
+  transition: opacity 0.4s, transform 0.4s;
+}
+.fact-popup.is-hidden {
+  opacity: 0;
+  transform: translateX(-20px);
+  pointer-events: none;
+}
+.fact-popup-head {
+  color: var(--color-link);
+  font-weight: 700;
+}
+.fact-popup-text {
+  margin: 4px 0 6px;
+  font-size: 16px;
+  line-height: 1.3;
+}
+.fact-popup-source {
+  color: var(--color-link);
+}
+.fact-popup-close {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--color-plum-solid);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+/* Where the space weather comes from: LIVE (green dot) or archived. */
+.hud-data {
+  right: 14px;
+  bottom: 130px;
+  max-width: 260px;
+  text-align: right;
+}
+.hud-data.is-live {
+  border: 2px solid var(--color-good);
+}
+.data-live-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--color-good);
+  animation: flicker 0.8s ease-in-out infinite alternate;
+}
+
+/* The Real NASA Data screen (uses the menu's dialog look, .start-help). */
+.data-screen {
+  width: min(620px, 92vw);
+}
+.data-screen h3 {
+  margin: 0 0 4px;
+  color: #f6d3af;
+  font-size: 19px;
+}
+.data-card {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid #bc927655;
+  border-radius: 14px;
+}
+.data-screen .data-card p {
+  margin: 6px 0;
+}
+.data-screen .data-source {
+  color: #c8ab99;
+  font-size: 13px;
+}
+.data-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+}
+.data-screen .data-badge.is-archived {
+  background: #4a3a52;
+  color: #f6d3af;
+}
+.data-screen .data-badge.is-live {
+  background: #2f5a3a;
+  color: #e6ffe9;
+}
+.data-screen .data-badge.is-warn {
+  background: var(--color-bad-chip);
+  color: #ffe6e1;
+}
+.data-screen .data-simple {
+  font-size: 13px;
+}
+.data-screen .data-credit {
+  font-size: 12px;
+  color: #c8ab99;
+}
+.data-link {
+  display: block;
+  color: #f1bd8c;
+  font-size: 14px;
+}
+.data-toggle {
+  display: block;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #3a2c40;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+/* Menu button that opens the data screen (top left, next to the settings gear). */
+.start-data {
+  position: absolute;
+  left: 12.5%;
+  top: 5.5%;
+  padding: 0.6cqw 1.4cqw;
+  border: 0.2cqw solid #bc9276;
+  border-radius: 999px;
+  background: #2c2332e6;
+  color: #f6d3af;
+  font: bold 1.4cqw 'Trebuchet MS', sans-serif;
+  cursor: pointer;
+}
+.start-data:hover {
+  background: #53363d;
+}
+.start-data:focus-visible {
+  outline: 3px solid #ffe1ae;
+  outline-offset: 3px;
+}
+
+/* Podium: the rover photo you won, and the data button. */
+.podium-photo {
+  margin: 0 0 var(--space-m);
+  padding: var(--space-s);
+  border-radius: var(--radius-m);
+  background: var(--color-cream);
+  color: var(--color-plum-solid);
+  text-align: left;
+  animation: fade-in 0.6s ease-out;
+}
+.podium-photo-head {
+  font-weight: 700;
+  margin-bottom: var(--space-xs);
+}
+.podium-photo img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: var(--radius-s);
+  background: var(--color-plum-solid);
+}
+.podium-photo-caption {
+  margin-top: var(--space-xs);
+  font-size: var(--font-size-m);
+}
+.podium-photo-credit {
+  font-size: 12px;
+  color: var(--color-link);
 }
 
 /* Small screens: chips wrap under the logo, keys hide (they're for keyboards anyway). */
@@ -813,6 +996,14 @@ body {
   }
   .podium-step {
     width: 95px;
+  }
+  .fact-popup {
+    top: auto;
+    bottom: 14px;
+    width: 200px;
+  }
+  .hud-data {
+    display: none;
   }
   .message {
     top: 240px;

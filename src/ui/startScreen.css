@@ -125,7 +125,8 @@
 .is-launching .rocket-exhaust { opacity: 1; animation: engine-burn 100ms ease-in-out infinite alternate; }
 .is-launching .rocket-ground-shadow { opacity: 0; }
 .is-launching .start-selector,
-.is-launching .start-settings { opacity: .4; transition: opacity .3s; }
+.is-launching .start-settings,
+.is-launching .start-data { opacity: .4; transition: opacity .3s; }
 @keyframes rocket-takeoff {
   0% { transform: translateY(-.65cqw) scale(1.045); }
   18% { transform: translate(-1.1cqw, -.9cqw) rotate(-2deg) scale(1.045); }

@@ -2,6 +2,16 @@
 // without hunting through code. On Roblox this file becomes a ModuleScript.
 // Units: distances are in studs (1 unit = 1 Roblox stud), time in seconds.
 
+import radiation from '../data/radiation.json';
+
+// Real radiation on the ground of Mars, measured by NASA's Curiosity rover.
+// SOURCE: NASA OSDR RadLab, MSL RAD surface absorbed dose rate, 2023 median
+// (src/data/radiation.json, made by tools/fetch_radlab.py; see docs/DATA.md).
+const MARS_DOSE_MICROGRAY_PER_SOL = radiation.medianMicroGrayPerSol;
+// GAME EXAGGERATION: health lost per microgray by unshielded crew. Real Mars
+// radiation is far too slow to notice in a 5-minute round, so we speed it up.
+const DAMAGE_PER_MICROGRAY = 0.44;
+
 export const BALANCE = {
   // Fixed simulation step: the sim always advances in 1/60 s slices,
   // so the game plays the same on fast and slow computers.
@@ -11,9 +21,13 @@ export const BALANCE = {
   },
 
   map: {
+    // The real map (Jezero Crater) is 60 km wide squeezed into 1000 studs, so
+    // 1 stud = 60 m sideways; heights are stretched 4x so hills read well.
+    // Both are set in tools/process_marstrek.py; these two must match its output.
     worldSize: 1000, // the map is 1000 x 1000 studs, centered on (0, 0)
     gridSize: 128, // height grid is 128 x 128 points
-    // PLACEHOLDER crater shape, until the real Mars Trek elevation arrives.
+    // The crater rim is about 396 studs from the middle on the real map.
+    // FALLBACK crater shape (only used if the real map data can't load).
     craterRadius: 400, // where the crater wall peaks
     craterWallWidth: 70, // how wide the inner wall slope is
     craterRimHeight: 45,
@@ -145,7 +159,8 @@ export const BALANCE = {
     maxHealth: 100,
     // Background space radiation hurting crew that aren't covered by shielding.
     // Per sol at 0% coverage; scales down as coverage goes up.
-    radiationDamagePerSol: 60, // TODO-REAL-DATA: replace with RadLab baseline dose rate in M5
+    // = real Mars dose per sol (about 137 microgray) x game exaggeration (about 60 health).
+    radiationDamagePerSol: MARS_DOSE_MICROGRAY_PER_SOL * DAMAGE_PER_MICROGRAY,
     noLifeSupportDamagePerSol: 150, // out of air, water and food
     noPowerDamagePerSol: 90, // lander/habitats unpowered: no heat, no air recycling
     healPerSol: 30, // recovery when nothing is hurting the crew
@@ -181,7 +196,8 @@ export const BALANCE = {
       // Flare classes (C < M < X) and how strong each one hits.
       // shieldNeed: during the flare your base needs this many times its normal
       // Shielding to be fully covered, so you must pile up soil before it hits.
-      // TODO-REAL-DATA: M5 replays real DONKI flares; the class will come from that data.
+      // The class of each flare comes from the real DONKI flare it replays
+      // (src/data/flares.json). `weight` is only used if there's no flare data.
       classes: {
         C: { weight: 5, strength: 0.6, shieldNeed: 1.5 },
         M: { weight: 3, strength: 1, shieldNeed: 2 },
@@ -342,6 +358,18 @@ export const BALANCE = {
   minimap: {
     sizePx: 150, // on-screen size in pixels
     viewRadius: 160, // studs from the player to the map's edge
+  },
+
+  // "Today's space weather": live solar flares from NASA DONKI (optional).
+  liveData: {
+    donkiDays: 30, // ask for the flares of the last 30 days
+    timeoutSeconds: 8, // give up and use the archived flares after this long
+  },
+
+  // Real NASA fact pop-ups during a round (UI only).
+  facts: {
+    popupSeconds: 10, // how long a fact card stays up
+    minGapSeconds: 25, // game seconds between two fact cards
   },
 } as const;
 

@@ -1,0 +1,5 @@
+# Python packages for the data tools in tools/.
+# Setup: python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt
+numpy>=1.26
+pillow>=10.0
+certifi>=2024.2.2

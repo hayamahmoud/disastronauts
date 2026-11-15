@@ -1,0 +1,12 @@
+{
+  "source": "NASA OSDR RadLab: Curiosity rover Radiation Assessment Detector (MSL RAD) on the Mars surface",
+  "sourceUrl": "https://visualization.osdr.nasa.gov/radlab/gui/data-overview/",
+  "instrument": "MSL-RAD-Surface",
+  "period": "2023",
+  "fetchedAt": "2026-11-14",
+  "readings": 29315,
+  "medianMicroGrayPerHour": 5.577,
+  "minMicroGrayPerHour": 0.982,
+  "maxMicroGrayPerHour": 15.505,
+  "medianMicroGrayPerSol": 137.5
+}
