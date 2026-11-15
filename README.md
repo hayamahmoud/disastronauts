@@ -7,7 +7,7 @@ A fast 3D browser game made for the NASA Space Apps Challenge 2026
 Jezero Crater on Mars and race three computer rivals to build the best colony. The
 solar flares, radiation and terrain all come from real NASA open data.
 
-**Play it:** https://dis-astronauts.vercel.app/ (no download, no account; works on laptops, tablets and phones)
+**Play it:** https://disastronauts.vercel.app/ (no download, no account; works on laptops, tablets and phones)
 
 ## How to play
 
