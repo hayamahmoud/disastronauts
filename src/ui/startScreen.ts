@@ -22,8 +22,8 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
     <div class="start-artboard">
       <img class="start-art" src="${import.meta.env.BASE_URL}ui/starting-page-launch-bg.png" alt="Disastronauts: a cozy illustrated Mars outpost under a starry sky, with an astronaut and a rocket ready for launch." draggable="false">
       <button class="start-settings art-hit" aria-label="Settings and controls"></button>
-      <button class="start-data">🛰️ Real NASA Data</button>
-      <button class="start-data start-shop">🛒 Shop · 🪙 <span class="start-coins"></span></button>
+      <button class="start-data" aria-label="Real NASA Data"><img src="${import.meta.env.BASE_URL}ui/nasa-logo.svg" alt="" class="dashboard-nasa-logo"></button>
+      <button class="start-data start-shop" aria-label="Open shop"><svg class="dashboard-cart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h3l2.5 12h11l2-8H6"/><path d="M8 15l-1 3h12"/><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg></button>
       <section class="start-selector players-selector" aria-label="Players">
         <button class="art-hit previous" aria-label="Fewer players"></button>
         <output class="selector-value" aria-live="polite">4</output>
@@ -36,13 +36,15 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
         <span class="rocket-label">Start Game<span class="start-triangle" aria-hidden="true"></span></span>
       </button>
     </div>
-    <dialog class="start-help">
-      <button class="settings-close" aria-label="Close settings">×</button>
-      <h2>Mission settings</h2>
+    <dialog class="start-help mission-settings" aria-label="Mission settings">
+      <header class="scroll-dialog-header">
+        <div class="console-title"><h2>Mission settings</h2></div>
+        <button class="settings-close" aria-label="Close settings">×</button>
+      </header>
       <p><strong>Players</strong> includes you and up to three computer rivals. After a 10-second countdown you get 5 minutes: the highest <strong>Colony Score</strong> wins!</p>
       <p>Move with <strong>WASD / arrow keys</strong> (on a tablet or phone: the <strong>joystick</strong>). Nearby supplies collect automatically. Return to your base to unload.</p>
       <p><strong>C</strong> changes the camera. <strong>P</strong> changes power priority. <strong>Space</strong> calls Earth for a supply drop. <strong>E</strong> (hold) does a mini task. <strong>B</strong> uses a Solar Boost.</p>
-      <p>Every round earns <strong>coins</strong> and <strong>XP</strong>. Spend coins in the <strong>🛒 Shop</strong> on upgrades, power-ups and new looks. No real money, ever!</p>
+      <p>Every round earns <strong>coins</strong> and <strong>XP</strong>. Spend coins in the <strong>Shop</strong> on upgrades, power-ups and new looks. No real money, ever!</p>
       <fieldset class="audio-settings">
         <legend>Sound</legend>
         <label class="audio-mute"><input type="checkbox" class="settings-mute"> Mute all sound</label>
@@ -90,8 +92,8 @@ export function createStartScreen(onStart: (options: LaunchOptions) => void, aud
   click('.start-settings', () => { syncAudio(); tutorialBox.checked = !tutorialDone(); dialog.showModal(); });
   click('.start-data:not(.start-shop)', () => openDataScreen({ flares: null, realMap: null }));
   click('.start-shop', shop.open);
-  const coins = screen.querySelector<HTMLSpanElement>('.start-coins')!;
-  const showCoins = () => { coins.textContent = String(shop.coins()); };
+  const shopButton = screen.querySelector<HTMLButtonElement>('.start-shop')!;
+  const showCoins = () => { shopButton.setAttribute('aria-label', `Open shop (${shop.coins()} coins)`); };
   const unsubscribeShop = shop.onChange(showCoins);
   showCoins();
   click('.settings-close', () => dialog.close());

@@ -23,7 +23,7 @@ export function watchTouchScreen(onChange?: () => void): void {
     document.body.classList.add('is-touch');
     onChange?.();
   };
-  if (window.matchMedia('(pointer: coarse)').matches) mark();
+  if (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0) mark();
   window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') mark(); }, { capture: true });
   // Dev only: ?touch=1 forces touch mode so it can be tried with a mouse.
   if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('touch') === '1') mark();
@@ -47,19 +47,21 @@ export function createTouchStick(parent: HTMLElement): TouchInput {
     const r = pad.getBoundingClientRect();
     let dx = clientX - (r.left + r.width / 2);
     let dy = clientY - (r.top + r.height / 2);
+    // Match the usable travel to the rendered pad, including smaller phone layouts.
+    const radius = Math.max(1, Math.min(R.stickRadiusPx, (Math.min(r.width, r.height) - knob.offsetWidth) / 2));
     const len = Math.hypot(dx, dy);
-    if (len > R.stickRadiusPx) {
-      dx = (dx / len) * R.stickRadiusPx;
-      dy = (dy / len) * R.stickRadiusPx;
+    if (len > radius) {
+      dx = (dx / len) * radius;
+      dy = (dy / len) * radius;
     }
     knob.style.transform = `translate(${dx}px, ${dy}px)`;
-    const amount = Math.min(1, len / R.stickRadiusPx);
+    const amount = Math.min(1, len / radius);
     if (amount < R.deadZone) {
       x = z = 0;
       return;
     }
-    x = dx / R.stickRadiusPx;
-    z = dy / R.stickRadiusPx;
+    x = dx / radius;
+    z = dy / radius;
   }
   function release() {
     finger = null;
@@ -69,6 +71,7 @@ export function createTouchStick(parent: HTMLElement): TouchInput {
   }
 
   pad.addEventListener('pointerdown', (e) => {
+    if (finger !== null) return;
     finger = e.pointerId;
     pad.setPointerCapture(e.pointerId); // keep steering even if the thumb slides off
     pad.classList.add('is-held');
@@ -81,6 +84,7 @@ export function createTouchStick(parent: HTMLElement): TouchInput {
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) {
     pad.addEventListener(type, (e) => { if (e.pointerId === finger) release(); });
   }
+  window.addEventListener('blur', release);
   pad.addEventListener('contextmenu', (e) => e.preventDefault()); // long-press menu on phones
 
   return {

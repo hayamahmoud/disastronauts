@@ -43,6 +43,7 @@ export function createFactPopup(root: HTMLElement, localPlayerId: string): FactP
   let waiting: { trigger: FactTrigger; at: number } | null = null;
   let shownAt = -Infinity; // game time the current/last pop-up appeared
   let open = false;
+  let lastUpdate = 0;
   close.addEventListener('click', hide);
 
   function hide() {
@@ -86,6 +87,8 @@ export function createFactPopup(root: HTMLElement, localPlayerId: string): FactP
   return {
     update(state, events) {
       const F = BALANCE.facts;
+      const elapsed = Math.max(0, state.time - lastUpdate);
+      lastUpdate = state.time;
       if (state.round.phase === 'ended') {
         if (open) hide();
         return;
@@ -93,6 +96,13 @@ export function createFactPopup(root: HTMLElement, localPlayerId: string): FactP
       for (const e of events) {
         const t = triggerFor(e, state);
         if (t && !used.has(t) && factsFor(t).length > 0) waiting = { trigger: t, at: state.time };
+      }
+      // Gameplay messages and the tutorial take priority. Pause the fact's
+      // reading time and pending queue until that notification has cleared.
+      if (root.querySelector('.message:not(.is-hidden), .tutorial:not(.is-hidden)')) {
+        if (open) shownAt += elapsed;
+        if (waiting) waiting.at += elapsed;
+        return;
       }
       if (open && state.time - shownAt >= F.popupSeconds) hide();
       if (!waiting) return;

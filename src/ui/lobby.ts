@@ -1,33 +1,19 @@
-// The lobby: everyone has landed, a big countdown runs, and you meet your
-// rivals. Shows while the round is in its 'lobby' phase, flashes "GO!" when
+// The lobby: everyone has landed and a countdown runs. Shows while the round is in its 'lobby' phase, flashes "GO!" when
 // it starts, then gets out of the way. Reads the state only.
 
-import { BALANCE } from '../config/balance';
 import type { GameEvent } from '../core/events';
 import type { GameState } from '../core/state';
 import { el } from './components';
-import { teamCss } from './theme';
 
 export interface Lobby {
   update(state: GameState, events: GameEvent[]): void;
 }
 
-export function createLobby(root: HTMLElement, state: GameState, localPlayerId: string): Lobby {
+export function createLobby(root: HTMLElement, state: GameState): Lobby {
   const box = el('div', 'lobby');
   const title = el('div', 'lobby-title', 'Get ready!');
   const count = el('div', 'lobby-count');
-  const goal = el('div', 'lobby-goal', `Grow the best colony in ${Math.round(state.round.length / 60)} minutes!`);
-  const cards = el('div', 'lobby-cards');
-
-  // One card per player: team color, name, and how the rivals like to play.
-  for (const p of state.players) {
-    const card = el('div', p.id === localPlayerId ? 'lobby-card is-me' : 'lobby-card');
-    card.style.setProperty('--team', teamCss(p.colorIndex));
-    const style = p.bot ? BALANCE.bots.personalities[p.bot.personality].style : 'That’s you!';
-    card.append(el('span', 'lobby-card-dot'), el('div', 'lobby-card-name', p.name), el('div', 'lobby-card-style', style));
-    cards.appendChild(card);
-  }
-  box.append(title, count, goal, cards);
+  box.append(title, count);
   root.appendChild(box);
 
   let lastCount = -1;
@@ -41,8 +27,6 @@ export function createLobby(root: HTMLElement, state: GameState, localPlayerId: 
         box.classList.add('is-go');
         title.textContent = '';
         count.textContent = 'GO!';
-        goal.textContent = '';
-        cards.remove();
         window.clearTimeout(hideTimer);
         hideTimer = window.setTimeout(() => box.classList.add('is-hidden'), 900);
         return;

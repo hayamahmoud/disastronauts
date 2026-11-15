@@ -5,7 +5,7 @@ import { BALANCE } from '../config/balance';
 import { roundTimeLeft } from '../core/round';
 import { standings } from '../core/scoring';
 import type { GameState } from '../core/state';
-import { createIcon, el } from './components';
+import { el } from './components';
 import { teamCss } from './theme';
 
 export interface Scoreboard {
@@ -13,10 +13,10 @@ export interface Scoreboard {
 }
 
 export function createScoreboard(root: HTMLElement, localPlayerId: string): Scoreboard {
-  const box = el('div', 'scoreboard');
-  box.title =
-    'Colony Score: 100 per healthy crew, 50 per building with Power, 1 per stored resource, 25 per mission star. Highest score when time runs out wins!';
-  const clock = el('div', 'scoreboard-clock');
+  const box = el('details', 'scoreboard');
+  box.setAttribute('aria-description',
+    'Colony Score: 100 per healthy crew, 50 per building with Power, 1 per stored resource, 25 per mission star. Highest score when time runs out wins!');
+  const clock = el('summary', 'scoreboard-clock');
   const rows = el('ol', 'scoreboard-rows');
   box.append(clock, rows);
   root.appendChild(box);
@@ -34,7 +34,7 @@ export function createScoreboard(root: HTMLElement, localPlayerId: string): Scor
       if (clockKey !== lastClock) {
         lastClock = clockKey;
         clock.classList.toggle('is-hurry', hurry);
-        clock.replaceChildren(createIcon('icon_timer'), el('span', '', ' ' + text));
+        clock.replaceChildren(el('span', 'scoreboard-heading', 'Standings'), el('span', 'scoreboard-time', text));
       }
 
       const list = standings(state);
@@ -47,7 +47,6 @@ export function createScoreboard(root: HTMLElement, localPlayerId: string): Scor
           const dot = el('span', 'scoreboard-dot');
           dot.style.background = teamCss(s.colorIndex);
           row.append(el('span', 'scoreboard-rank', String(s.rank)), dot, el('span', 'scoreboard-name', s.name), el('span', 'scoreboard-score', String(s.score.total)));
-          if (s.rank === 1) row.appendChild(createIcon('icon_trophy'));
           return row;
         }),
       );

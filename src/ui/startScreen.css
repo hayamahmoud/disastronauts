@@ -52,7 +52,7 @@
 .players-selector { left: 42%; }
 .start-selector button { position: relative; height: 100%; width: 100%; border-radius: 20%; }
 .selector-value {
-  font: bold 4.1cqw Georgia, serif;
+  font: 500 4.1cqw var(--font-main);
   color: #f5d5ad;
   line-height: 1;
   pointer-events: none;
@@ -65,7 +65,7 @@
   height: 28.1%;
   border-radius: 45%;
   color: #241a1a;
-  font: bold italic 3.2cqw 'Trebuchet MS', cursive;
+  font: 500 3.2cqw var(--font-main);
   transform-origin: 50% 60%;
   transition: transform 220ms ease, filter 220ms ease;
   z-index: 2;
@@ -209,3 +209,33 @@ body:has(#game canvas) .sound-toggle { bottom: auto; top: 16px; right: 140px; }
 .settings-volume { display: block; width: 100%; height: 28px; margin: 4px 0 0; cursor: pointer; touch-action: pan-y; }
 .audio-settings .audio-settings-note { margin: 12px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-faint-text); }
 .settings-volume:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; border-radius: 5px; }
+
+/* Long dialogs keep their title and close button above the scrolling content. */
+.scroll-dialog-header {
+  position: sticky;
+  top: -28px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -28px -28px 18px;
+  padding: 18px 28px;
+  background: var(--color-plum-solid);
+  border-bottom: 1px solid var(--color-line);
+}
+.start-help .scroll-dialog-header h2 { margin: 0; }
+.scroll-dialog-header .settings-close {
+  position: static;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-s);
+}
+.scroll-dialog-header .settings-close:hover { background: var(--color-line); }
+.scroll-dialog-header .settings-close:focus-visible { outline: 3px solid var(--color-focus); }
+
+/* Dashboard audio controls live in Mission settings. */
+body:has(.start-screen) .sound-toggle { display: none; }

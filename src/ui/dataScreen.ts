@@ -35,14 +35,6 @@ export function wantsLiveSpaceWeather(): boolean {
   }
 }
 
-function setLiveSpaceWeather(on: boolean): void {
-  try {
-    window.localStorage.setItem(LIVE_KEY, on ? '1' : '0');
-  } catch {
-    // Can't save: the setting just won't be remembered.
-  }
-}
-
 // --- The screen ---
 
 export function openDataScreen(status: DataStatus): void {
@@ -51,17 +43,21 @@ export function openDataScreen(status: DataStatus): void {
   const close = el('button', 'settings-close', '×');
   close.type = 'button';
   close.setAttribute('aria-label', 'Close');
-  dialog.append(close, el('h2', '', '🛰️ Real NASA Data'));
+  const header = el('header', 'scroll-dialog-header');
+  const title = el('div', 'console-title');
+  title.append(el('h2', '', 'Real NASA Data'));
+  header.append(title, close);
+  dialog.appendChild(header);
   dialog.appendChild(
-    el('p', '', 'This game is built from real NASA data. Here is each dataset, what it changes in the game, and where it came from.'),
+    el('p', '', 'Explore the NASA datasets behind the game, how we use them, and what we simplify.'),
   );
 
   // 1. Solar flares
   const flares = status.flares ?? archivedFlares();
   const flareCard = card(
-    '☀️ Solar flares',
+    'Solar flares',
     'NASA DONKI (space weather database)',
-    'Which solar flares hit your base, and how strong each one is (C, M or X class).',
+    'Sets the solar flare events and their strength: C, M, or X class.',
   );
   if (status.flares?.live) {
     flareCard.append(liveBadge(`Downloaded just now: ${flares.flares.length} flares from ${niceDate(flares.startDate)} to ${niceDate(flares.endDate)}`));
@@ -73,27 +69,26 @@ export function openDataScreen(status: DataStatus): void {
   }
   flareCard.append(
     simple(
-      'These flares were seen from near Earth. In the game, every one of them reaches your base on Mars. ' +
-        `Real flares last minutes to hours; here each lasts ${BALANCE.disasters.solarFlare.duration} seconds.`,
+      'These flares were observed near Earth. We use them as a stand-in for conditions on Mars. ' +
+        `Real flares last minutes to hours; each game event lasts ${BALANCE.disasters.solarFlare.duration} seconds.`,
     ),
     sourceLink(FLARES_INFO.source, FLARES_INFO.sourceUrl),
-    liveToggle(),
   );
   dialog.appendChild(flareCard);
 
   // 2. Radiation on Mars
   const rad = RADIATION_INFO;
   const radCard = card(
-    '☢️ Radiation on Mars',
+    'Radiation on Mars',
     'NASA OSDR RadLab: the radiation detector on the Curiosity rover',
-    'How fast your crew gets hurt when their Shield is too weak.',
+    'Sets radiation damage when your crew has too little shielding.',
   );
   radCard.append(
     archivedBadge(rad.period, null, `${rad.readings.toLocaleString('en-GB')} readings`),
     el('p', 'data-note', `Typical reading: ${rad.medianMicroGrayPerHour} micrograys per hour, about ${rad.medianMicroGrayPerSol} per sol (Mars day).`),
     simple(
-      'Curiosity measures this in Gale Crater, not in Jezero, but it is the same Martian surface. ' +
-        'Real radiation this weak would take years to hurt anyone; the game speeds it up a lot so you can see it.',
+      'Readings come from Gale Crater, not Jezero Crater. ' +
+        'Radiation damage is accelerated to make its effects visible during short rounds.',
     ),
     sourceLink('NASA OSDR RadLab', rad.sourceUrl),
   );
@@ -101,9 +96,9 @@ export function openDataScreen(status: DataStatus): void {
 
   // 3. The map
   const mapCard = card(
-    '🗺️ The map: Jezero Crater',
+    'The map: Jezero Crater',
     'Mars Global Surveyor MOLA heights and the MRO CTX photo mosaic, as shown in NASA Mars Trek',
-    'The shape of the ground: the crater rim, the hills and the flat floor you build on.',
+    'Shapes the crater rim, hills, and ground around your base.',
   );
   if (status.realMap === false) {
     mapCard.append(el('p', 'data-badge is-warn', 'The real map could not be loaded this time: you are playing on a made-up practice crater.'));
@@ -112,7 +107,7 @@ export function openDataScreen(status: DataStatus): void {
   }
   mapCard.append(
     simple(
-      `The real area is ${MAP_INFO.mapKm} km across; in the game it is squeezed into a map you can drive across in a minute. ` +
+      `The real area spans ${MAP_INFO.mapKm} km. We compress it into a smaller playable map. ` +
         `Hills are made ${MAP_INFO.verticalExaggeration} times taller so they are easier to see.`,
     ),
     sourceLink('NASA Mars Trek', MAP_INFO.sourceUrl),
@@ -124,19 +119,19 @@ export function openDataScreen(status: DataStatus): void {
   // 4. Rover photos
   const sols = ROVER_PHOTOS.map((p) => p.sol);
   const photoCard = card(
-    '📷 Rover photo cards',
+    'Rover photo cards',
     'NASA Perseverance rover raw images',
-    'The photo card you win when you survive a disaster or win a round.',
+    'Provides reward photos for surviving disasters or winning rounds.',
   );
   photoCard.append(
     el('p', 'data-badge is-archived', `Archived NASA photos: ${ROVER_PHOTOS.length} pictures from sol ${Math.min(...sols)} to sol ${Math.max(...sols)} of the mission`),
-    simple('These are raw pictures, straight from the rover, chosen by us. Credit: NASA/JPL-Caltech.'),
+    simple('Selected raw rover images. Credit: NASA/JPL-Caltech.'),
     sourceLink(ROVER_PHOTOS_INFO.source, ROVER_PHOTOS_INFO.sourceUrl),
   );
   dialog.appendChild(photoCard);
 
   // 5. Facts
-  const factCard = card('💡 Fact pop-ups', 'NASA web pages', 'The "Real NASA fact!" boxes and the podium\'s "What you learned".');
+  const factCard = card('Fact pop-ups', 'NASA web pages', 'The "Real NASA fact!" boxes and the podium\'s "What you learned".');
   const seen = new Set<string>();
   for (const f of FACTS) {
     if (seen.has(f.url)) continue;
@@ -182,29 +177,14 @@ function archivedBadge(from: string, to: string | null, count: string): HTMLElem
 
 function simple(text: string): HTMLElement {
   const p = el('p', 'data-simple');
-  p.append(el('b', '', 'What we changed: '), document.createTextNode(text));
+  p.append(el('b', '', 'Game simplification: '), document.createTextNode(text));
   return p;
 }
 
 function sourceLink(text: string, url: string): HTMLElement {
-  const a = el('a', 'data-link', `${text} ↗`);
+  const a = el('a', 'data-link', text);
   a.href = url;
   a.target = '_blank';
   a.rel = 'noopener';
   return a;
-}
-
-function liveToggle(): HTMLElement {
-  const label = el('label', 'data-toggle');
-  const box = el('input');
-  box.type = 'checkbox';
-  box.checked = wantsLiveSpaceWeather();
-  box.addEventListener('change', () => setLiveSpaceWeather(box.checked));
-  label.append(
-    box,
-    document.createTextNode(
-      ` Today's space weather: next game, try to download the last ${BALANCE.liveData.donkiDays} days of real flares from NASA (needs internet; if it fails, the saved flares are used).`,
-    ),
-  );
-  return label;
 }
