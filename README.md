@@ -8,6 +8,7 @@ Jezero Crater on Mars and race three computer rivals to build the best colony. T
 solar flares, radiation and terrain all come from real NASA open data.
 
 **Play it:** https://disastronauts.vercel.app/ (no download, no account; works on laptops, tablets and phones)
+**Demo:** https://www.youtube.com/watch?v=ZFkVoURkhxk
 
 ## How to play
 
